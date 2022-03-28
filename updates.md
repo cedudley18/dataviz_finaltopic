@@ -5,3 +5,7 @@
 ## March 28 beginning of class
 
   I set up my dataset so that I have a full dataset of all of the coefficients I will need to create geom_segments of lines from my models for the 2017-18 season. Still need to find a way to include both the dataset with the odds and the dataset with the coefficients.
+  
+## March 28 end of class
+
+  I created a Shinyapp that allows you to select a team and shows the scatterplot of their predicted probability of winning a game throughout the 2017-18 season. 

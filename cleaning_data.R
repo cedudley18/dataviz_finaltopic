@@ -189,9 +189,33 @@ write.csv(tidy_coef17_fin, "data/coefs2017.csv")
 write.csv(nhl_2017_neat, "data/nhl_2017_neat.csv")
 
 
+# creating a "model" dataset including home team effect and Boundary Prob
+h1a1_df <- as.data.frame(h1a117)
+nhl_2017_neat <- 
+  nhl_2017_neat %>%
+  mutate(ID = row_number())
+h1a1_df <-
+  h1a1_df %>%
+  mutate(ID = row_number())
 
+model_subset <-
+  nhl_2017_neat %>%
+  select("BoundaryProbHome2", "BoundaryProbAway2", 
+         "HomeTeam", 
+         "AwayTeam",
+         "DeadlineInd", 
+         "DeadlineDays", "ID")
 
+model_subset <- left_join(model_subset, h1a1_df,
+                          by = "ID")
 
+model_subset <- subset(model_subset, select = -ID)
+
+model_subset <-
+  model_subset %>%
+  mutate(DeadlineDays = as.numeric(DeadlineDays))
+
+write.csv(model_subset, "data/model_subset.csv")
 
 
 
