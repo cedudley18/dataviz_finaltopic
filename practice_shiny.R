@@ -1,12 +1,36 @@
 library(tidyverse)
+
+# putting together all of the seasons
 coefs <- read_csv("data/coefs2017.csv")
 model_df <- read_csv("data/model_subset.csv")
+
+coefs16 <- read_csv("data/coefs2016.csv")
+model_df16 <- read_csv("data/model_subset16.csv")
+
+coefs <-
+  coefs %>%
+  mutate(Season = "2017-18")
+coefs16 <-
+  coefs16 %>%
+  mutate(Season = "2016-17")
+model_df <-
+  model_df %>%
+  mutate(Season = "2017-18")
+model_df16 <-
+  model_df16 %>%
+  mutate(Season = "2016-17")
+
+#total_coefs <-
+#  rbind(coefs16, coefs)
+#total_modeldf <-
+#  rbind(model_df16, model_df)
 
 # fix the team names
 coefs <-
   coefs %>%
   mutate(Team = substr(Team, 29, 40))
 
+# App
 
 library(shiny)
 
@@ -14,8 +38,8 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(selectizeInput(inputId = "teamchoice",
                                 label = "Choose a Team",
-                                choices = factor(model_df$HomeTeam),
-                                selected = "Buffalo")),
+                                choices = as.character(model_df$HomeTeam),
+                                selected = "Boston")),
     mainPanel(plotOutput(outputId = "majorplot"))
 ))
 

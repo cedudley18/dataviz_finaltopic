@@ -14,7 +14,9 @@
 
   I have a full shinyApp where you select a team and you see both a scatterplot and geom_segments of my linear model.
   
-  
+## March 30 end of class
+
+  I have been cleaning up another season's data to get it ready to add to the shinyApp.
   
 
   
