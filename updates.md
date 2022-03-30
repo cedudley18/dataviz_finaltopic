@@ -9,3 +9,13 @@
 ## March 28 end of class
 
   I created a Shinyapp that allows you to select a team and shows the scatterplot of their predicted probability of winning a game throughout the 2017-18 season. 
+  
+## March 30 beginning of class
+
+  I have a full shinyApp where you select a team and you see both a scatterplot and geom_segments of my linear model.
+  
+  
+  
+
+  
+  
