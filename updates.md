@@ -22,6 +22,10 @@
 
   I added another year's data to the Shiny and you can now select a season and team.
   
+## April 4 end of class
+
+  I added another year's data to the Shiny and also created a table output that I will continue to edit.
+  
 
   
   

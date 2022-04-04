@@ -11,3 +11,7 @@ Jack: Project on visualizing SLU baseball data in Shiny app, so far has cleaned/
 
 Kyle: Project on shinyApp of play by play NFL data with two tabs for graphs on players
 
+## April 4
+
+Jonathan: Project on looking at cardiovascular data, looking at differences between people with low and high blood pressure and creating logistic regression models to explore relationships between different heart variables.
+

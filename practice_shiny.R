@@ -7,23 +7,32 @@ model_df <- read_csv("data/model_subset.csv")
 coefs16 <- read_csv("data/coefs2016.csv")
 model_df16 <- read_csv("data/model_subset16.csv")
 
+coefs18 <- read_csv("data/coefs2018.csv")
+model_df18 <- read_csv("data/model_subset18.csv")
+
 coefs <-
   coefs %>%
   mutate(Season = "2017-18")
 coefs16 <-
   coefs16 %>%
   mutate(Season = "2016-17")
+coefs18 <-
+  coefs18 %>%
+  mutate(Season = "2018-19")
 model_df <-
   model_df %>%
   mutate(Season = "2017-18")
 model_df16 <-
   model_df16 %>%
   mutate(Season = "2016-17")
+model_df18 <-
+  model_df18 %>%
+  mutate(Season = "2018-19")
 
 total_coefs <-
-  rbind(coefs16, coefs)
+  rbind(coefs16, coefs, coefs18)
 total_modeldf <-
- rbind(model_df16, model_df)
+ rbind(model_df16, model_df, model_df18)
 
 # fix the team names
 total_coefs <-
@@ -44,7 +53,10 @@ ui <- fluidPage(
                               label = "Choose a Season",
                               choices = levels(factor(total_coefs$Season)))),
     mainPanel(plotOutput(outputId = "majorplot"),
-              tableOutput(outputId = "table"))
+              tableOutput(outputId = "table1"),
+              tableOutput(outputId = "table2"),
+              tableOutput(outputId = "table3"),
+              tableOutput(outputId = "table4"))
 ))
 
 server <- function(input, output, session) {
@@ -64,6 +76,40 @@ server <- function(input, output, session) {
       filter(Season == input$yearselect,
         Team == input$teamchoice)
   })
+  
+  coef_order1 <- reactive({
+    total_coefs <-
+      total_coefs %>%
+      filter(Season == input$yearselect) %>%
+      slice_max(diffat0, n = 5) %>%
+      select(Team, diffat0)
+  })
+  
+  coef_order2 <- reactive({
+    total_coefs <-
+      total_coefs %>%
+      filter(Season == input$yearselect) %>%
+      slice_min(diffat0, n = 5) %>%
+      select(Team, diffat0)
+  })
+  
+  coef_order3 <- reactive({
+    total_coefs <-
+      total_coefs %>%
+      filter(Season == input$yearselect) %>%
+      slice_max(diffat40, n = 5) %>%
+      select(Team, diffat40)
+  })
+  
+  coef_order4 <- reactive({
+    total_coefs <-
+      total_coefs %>%
+      filter(Season == input$yearselect) %>%
+      slice_min(diffat40, n = 5) %>%
+      select(Team, diffat40)
+  })
+  
+ 
   
   output$majorplot <- renderPlot({
     ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb)) +
@@ -89,7 +135,19 @@ server <- function(input, output, session) {
       
   })
   
-  output$table <- renderTable({
+  output$table1 <- renderTable({coef_order1()
+    
+  })
+  
+  output$table2 <- renderTable({coef_order2()
+    
+  })
+  
+  output$table3 <- renderTable({coef_order3()
+    
+  })
+  
+  output$table4 <- renderTable({coef_order4()
     
   })
   
