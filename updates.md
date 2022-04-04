@@ -18,6 +18,10 @@
 
   I have been cleaning up another season's data to get it ready to add to the shinyApp.
   
+## April 4 beginning of class
+
+  I added another year's data to the Shiny and you can now select a season and team.
+  
 
   
   

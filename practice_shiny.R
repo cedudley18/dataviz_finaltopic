@@ -20,14 +20,14 @@ model_df16 <-
   model_df16 %>%
   mutate(Season = "2016-17")
 
-#total_coefs <-
-#  rbind(coefs16, coefs)
-#total_modeldf <-
-#  rbind(model_df16, model_df)
+total_coefs <-
+  rbind(coefs16, coefs)
+total_modeldf <-
+ rbind(model_df16, model_df)
 
 # fix the team names
-coefs <-
-  coefs %>%
+total_coefs <-
+  total_coefs %>%
   mutate(Team = substr(Team, 29, 40))
 
 # App
@@ -38,15 +38,20 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(selectizeInput(inputId = "teamchoice",
                                 label = "Choose a Team",
-                                choices = as.character(model_df$HomeTeam),
-                                selected = "Boston")),
-    mainPanel(plotOutput(outputId = "majorplot"))
+                                choices = as.character(total_modeldf$HomeTeam),
+                                selected = "Boston"),
+                 radioButtons(inputId = "yearselect",
+                              label = "Choose a Season",
+                              choices = levels(factor(total_coefs$Season)))),
+    mainPanel(plotOutput(outputId = "majorplot"),
+              tableOutput(outputId = "table"))
 ))
 
 server <- function(input, output, session) {
   model_update <- reactive({
-    model_df <-
-      model_df %>%
+    total_modeldf <-
+      total_modeldf %>%
+      filter(Season == input$yearselect) %>%
       mutate(Teams = paste(HomeTeam, ",", AwayTeam)) %>%
       filter(str_detect(Teams, input$teamchoice)) %>%
       mutate(BoundaryProb = ifelse(HomeTeam == input$teamchoice,
@@ -54,9 +59,10 @@ server <- function(input, output, session) {
 })
   
   coef_update <- reactive({
-    coefs <-
-    coefs %>%
-      filter(Team == input$teamchoice)
+    total_coefs <-
+    total_coefs %>%
+      filter(Season == input$yearselect,
+        Team == input$teamchoice)
   })
   
   output$majorplot <- renderPlot({
@@ -83,6 +89,9 @@ server <- function(input, output, session) {
       
   })
   
+  output$table <- renderTable({
+    
+  })
   
 }
 

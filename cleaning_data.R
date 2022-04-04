@@ -112,6 +112,10 @@ nhl_2016_neat <-
 h116 = model.matrix(~-1+nhl_2016_neat$HomeTeam)
 a116 = model.matrix(~-1+nhl_2016_neat$AwayTeam)
 h1a116 = h116-a116
+h1a1_df16 <- as.data.frame(h1a116)
+h1a1_df16 <-
+  h1a1_df16 %>%
+  mutate(ID = row_number())
 
 # linear model
 nhl_2016_neat <-
@@ -125,52 +129,88 @@ summary(homeandaway_lm16)
 
 plot(homeandaway_lm16)
 
-# Calculating who won/lost trade deadline: Linear Model
+# Calculating who won/lost trade deadline: Lasso
 tidy_coef16 <- tidy(homeandaway_lm16)
+# constructing lasso model
+nhl_2016_neat <- 
+  nhl_2016_neat %>%
+  mutate(ID = row_number())
+
+model_subset16 <-
+  nhl_2016_neat %>%
+  select("BoundaryProbHome2", "DeadlineInd",
+         "DeadlineDays", "ID")
+
+model_subset16 <-
+  left_join(model_subset16, h1a1_df16, by = "ID")
+
+model_subset16 <- subset(model_subset16, select = -ID)
+
+# using model.matrix() function
+model_y16 <-
+  model_subset16$BoundaryProbHome2
+
+model_x16 <- model.matrix(BoundaryProbHome2 ~ 
+                            h1a116 + DeadlineInd + 
+                            DeadlineDays + 
+                            h1a116 * DeadlineInd + 
+                            h1a116 * DeadlineDays + 
+                            h1a116 * DeadlineInd * DeadlineDays,
+                          data = model_subset16)[,-1]
+
+# Lasso regression
+fit_lasso_cv16 <- cv.glmnet(model_x16, model_y16, 
+                            alpha = 1)
+
+# finding who won/lost the trade deadline LASSO
+tidy_coeffs16 <- coef(fit_lasso_cv16, s = "lambda.1se")
+tidy_lasso_coef16 <- data.frame(name = tidy_coeffs16@Dimnames[[1]][tidy_coeffs16@i + 1], 
+                                coefficient = tidy_coeffs16@x)
+
+# cleaning to get coefficients
+tidy_lasso_coef16 <- 
+  rename(tidy_lasso_coef16, term = name)
+
+tidy_lasso_coef16_tot <- left_join(tidy_coef16, tidy_lasso_coef16, by = "term")
+tidy_lasso_coef16_2 <- tidy_lasso_coef16_tot[-c(2:5)] 
+tidy_lasso_coef16_2[is.na(tidy_lasso_coef16_2)] = 0
 
 # transposing df
-tidy_coef16 <- t(tidy_coef16)
-tidy_coef16 <- as.data.frame(tidy_coef16)
+tidy_lasso_coef16_2 <- t(tidy_lasso_coef16_2)
+tidy_lasso_coef16_2 <- as.data.frame(tidy_lasso_coef16_2)
 
 # tidying names
-names(tidy_coef16) <- tidy_coef16[1,]
-tidy_coef16 <- tidy_coef16[-1,]
-
-# taking out sd and p-value
-tidy_coef16 <- tidy_coef16[-c(2,3,4),]
+names(tidy_lasso_coef16_2) <- tidy_lasso_coef16_2[1,]
+tidy_lasso_coef16_2 <- tidy_lasso_coef16_2[-1,]
 
 # split by coefficients
-hometeams <- tidy_coef16 %>%
+hometeams <- tidy_lasso_coef16_2 %>%
   select(1:31)
-deadlineind <- tidy_coef16 %>%
+deadlineind <- tidy_lasso_coef16_2 %>%
   select(DeadlineInd, 34:63)
-deadlinedays <- tidy_coef16 %>%
+deadlinedays <- tidy_lasso_coef16_2 %>%
   select(DeadlineDays, 64:93)
-interaction <- tidy_coef16 %>%
+interaction <- tidy_lasso_coef16_2 %>%
   select(94:124)
 
 # making data longer
-hometeams2 <- 
-  gather(hometeams, Team, intercept, 2:31)
-deadlineind2 <- 
-  gather(deadlineind, Team, deadline_indicator, 2:31)
-deadlinedays2 <- 
-  gather(deadlinedays, Team, deadline_days, 2:31)
-interaction2 <- 
-  gather(interaction, Team, deadline_interaction, 2:31)
+hometeams2 <- gather(hometeams, Team, intercept, 2:31)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:31)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:31)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:31)
 
 # binding data set together
-tidy_coef16_2 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_lasso_coef16_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
 
 # setting NAs to 0
-tidy_coef16_2[is.na(tidy_coef16_2)] <- 0
+tidy_lasso_coef16_3[is.na(tidy_lasso_coef16_3)] <- 0
 
 # tidying
-tidy_coef16_clean <- tidy_coef16_2[,-c(5,8,11)]
-names(tidy_coef16_clean)[1] <- "main_intercept"
+tidy_lasso_coef16_clean <- tidy_lasso_coef16_3[,-c(5,8,11)]
+names(tidy_lasso_coef16_clean)[1] <- "main_intercept"
 
-tidy_coef16_clean<-
-  tidy_coef16_clean %>%
+tidy_lasso_coef16_clean<-
+  tidy_lasso_coef16_clean %>%
   mutate(
     main_intercept = as.numeric(main_intercept),
     intercept = as.numeric(intercept),
@@ -182,8 +222,8 @@ tidy_coef16_clean<-
     deadline_interaction = as.numeric(deadline_interaction),
   )
 
-tidy_coef16_fin <-
-  tidy_coef16_clean %>%
+tidy_lasso_coef16_fin <-
+  tidy_lasso_coef16_clean %>%
   mutate(
     beforedeadline = main_intercept + intercept,
     atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
@@ -193,8 +233,9 @@ tidy_coef16_fin <-
     diffat40 = predictedend - firstlinepredictedend
   )
 
+
 # saving data frame of coefficients and neat data
-write.csv(tidy_coef16_fin, "data/coefs2016.csv")
+write.csv(tidy_lasso_coef16_fin, "data/coefs2016.csv")
 write.csv(nhl_2016_neat, "data/nhl_2016_neat.csv")
 
 # creating a "model" dataset including home team effect and Boundary Prob
@@ -256,6 +297,14 @@ model_subset16 <-
          "Washington" = `nhl_2016_neat$HomeTeamWashington`,
          "Winnipeg" = `nhl_2016_neat$HomeTeamWinnipeg`
   )
+
+
+# Need to add Vegas, which will just be 0
+model_subset16 <-
+  model_subset16 %>%
+  mutate(Vegas = 0)
+model_subset16 = model_subset16[,c(1:34, 37, 35, 36)]
+
 
 write.csv(model_subset16, "data/model_subset16.csv")
 
@@ -369,6 +418,10 @@ nhl_2017_neat <-
 h117 = model.matrix(~-1+nhl_2017_neat$HomeTeam)
 a117 = model.matrix(~-1+nhl_2017_neat$AwayTeam)
 h1a117 = h117-a117
+h1a1_df17 <- as.data.frame(h1a117)
+h1a1_df17 <-
+  h1a1_df17 %>%
+  mutate(ID = row_number())
 
 # Linear Model
 nhl_2017_neat <-
@@ -382,28 +435,67 @@ summary(homeandaway_lm17)
 
 plot(homeandaway_lm17)
 
-## Calculating who won/lost trade deadline: Linear Model
+## Calculating who won/lost trade deadline: Lasso Model
 tidy_coef17 <- tidy(homeandaway_lm17)
 
+# constructing lasso model
+nhl_2017_neat <- 
+  nhl_2017_neat %>%
+  mutate(ID = row_number())
+
+model_subset17 <-
+  nhl_2017_neat %>%
+  select("BoundaryProbHome2", "DeadlineInd",
+         "DeadlineDays", "ID")
+
+model_subset17 <-
+  left_join(model_subset17, h1a1_df17, by = "ID")
+
+model_subset17 <- subset(model_subset17, select = -ID)
+
+# using model.matrix() function
+model_y17 <-
+  model_subset17$BoundaryProbHome2
+
+model_x17 <- model.matrix(BoundaryProbHome2 ~ 
+                            h1a117 + DeadlineInd + 
+                            DeadlineDays + 
+                            h1a117 * DeadlineInd + 
+                            h1a117 * DeadlineDays + 
+                            h1a117 * DeadlineInd * DeadlineDays,
+                          data = model_subset17)[,-1]
+
+# Lasso regression
+fit_lasso_cv17 <- cv.glmnet(model_x17, model_y17, 
+                          alpha = 1)
+
+# finding who won/lost the trade deadline LASSO
+tidy_coeffs17 <- coef(fit_lasso_cv17, s = "lambda.1se")
+tidy_lasso_coef17 <- data.frame(name = tidy_coeffs17@Dimnames[[1]][tidy_coeffs17@i + 1], 
+                                coefficient = tidy_coeffs17@x)
+
+tidy_lasso_coef17 <- rename(tidy_lasso_coef17, term = name)
+
+tidy_lasso_coef17_tot <- left_join(tidy_coef17, tidy_lasso_coef17, by = "term")
+tidy_lasso_coef17_2 <- tidy_lasso_coef17_tot[-c(2:5)] 
+tidy_lasso_coef17_2[is.na(tidy_lasso_coef17_2)] = 0
+
 # transposing df
-tidy_coef17 <- t(tidy_coef17)
-tidy_coef17 <- as.data.frame(tidy_coef17)
+tidy_lasso_coef17_2 <- t(tidy_lasso_coef17_2)
+tidy_lasso_coef17_2 <- as.data.frame(tidy_lasso_coef17_2)
 
 # tidying names
-names(tidy_coef17) <- tidy_coef17[1,]
-tidy_coef17 <- tidy_coef17[-1,]
-
-# taking out sd and p-value
-tidy_coef17 <- tidy_coef17[-c(2,3,4),]
+names(tidy_lasso_coef17_2) <- tidy_lasso_coef17_2[1,]
+tidy_lasso_coef17_2 <- tidy_lasso_coef17_2[-1,]
 
 # split by coefficients
-hometeams <- tidy_coef17 %>%
+hometeams <- tidy_lasso_coef17_2 %>%
   select(1:32)
-deadlineind <- tidy_coef17 %>%
+deadlineind <- tidy_lasso_coef17_2 %>%
   select(DeadlineInd, 35:65)
-deadlinedays <- tidy_coef17 %>%
+deadlinedays <- tidy_lasso_coef17_2 %>%
   select(DeadlineDays, 66:96)
-interaction <- tidy_coef17 %>%
+interaction <- tidy_lasso_coef17_2 %>%
   select(97:128)
 
 # making data longer
@@ -413,17 +505,17 @@ deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:32)
 interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
 
 # binding data set together
-tidy_coef17_2 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_lasso_coef17_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
 
 # setting NAs to 0
-tidy_coef17_2[is.na(tidy_coef17_2)] <- 0
+tidy_lasso_coef17_3[is.na(tidy_lasso_coef17_3)] <- 0
 
 # tidying
-tidy_coef17_clean <- tidy_coef17_2[,-c(5,8,11)]
-names(tidy_coef17_clean)[1] <- "main_intercept"
+tidy_lasso_coef17_clean <- tidy_lasso_coef17_3[,-c(5,8,11)]
+names(tidy_lasso_coef17_clean)[1] <- "main_intercept"
 
-tidy_coef17_clean<-
-  tidy_coef17_clean %>%
+tidy_lasso_coef17_clean<-
+  tidy_lasso_coef17_clean %>%
   mutate(
     main_intercept = as.numeric(main_intercept),
     intercept = as.numeric(intercept),
@@ -435,8 +527,8 @@ tidy_coef17_clean<-
     deadline_interaction = as.numeric(deadline_interaction),
   )
 
-tidy_coef17_fin <-
-  tidy_coef17_clean %>%
+tidy_lasso_coef17_fin <-
+  tidy_lasso_coef17_clean %>%
   mutate(
     beforedeadline = main_intercept + intercept,
     atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
@@ -447,8 +539,11 @@ tidy_coef17_fin <-
   )
 
 
+
+
+
 # saving data frame of coefficients
-write.csv(tidy_coef17_fin, "data/coefs2017.csv")
+write.csv(tidy_lasso_coef17_fin, "data/coefs2017.csv")
 write.csv(nhl_2017_neat, "data/nhl_2017_neat.csv")
 
 
