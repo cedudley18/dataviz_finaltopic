@@ -30,6 +30,10 @@
 
   I added another year's data to the Shiny and data file.
   
+# April 6 end of class
+
+  I added the final season of data and was able to clean up the errors with my Shiny. Now thinking about making my plot interactive.
+  
 
   
   

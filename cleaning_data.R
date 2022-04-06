@@ -1222,3 +1222,308 @@ model_subset19 <-
   )
 
 write.csv(model_subset19, "data/model_subset19.csv")
+
+## 2020-2021
+# loading data
+nhl_2021 <- readxl::read_xlsx("data/nhl odds 2021.xlsx")
+
+# trade deadline and date indicator variables
+nhl_2021 <-
+  nhl_2021 %>%
+  mutate(Deadline = as.numeric(Date %in% c(412:707)),
+         Year = as.numeric(Date %in% c(113:707)))
+
+# adding date variable
+nhl_2021 <-
+  nhl_2021 %>%
+  mutate(Date = ifelse(Year == 0, paste(2020, Date, sep = ""),
+                       paste(2021, Date, sep = "0")))
+
+# convert date into a "date"
+nhl_2021 <-
+  nhl_2021 %>%
+  mutate(Date = lubridate::ymd(Date))
+
+# taking out playoff games
+nhl_2021 <-
+  nhl_2021 %>%
+  filter(Date < "2021-5-15")
+
+# making ID variable for game
+nhl_2021$ID <- seq.int(nrow(nhl_2021))
+nhl_2021 <-
+  nhl_2021 %>%
+  mutate(ID = as.integer(ID),
+         ID = ID / 2,
+         ID = ceiling(ID))
+
+# indicator variable for days since trade deadline
+nhl_2021 <-
+  nhl_2021 %>%
+  mutate(Deadline2 = Date - lubridate::ymd(20210412))
+
+# make data wider - each row is one game
+nhl_2021_home <- nhl_2021 %>%
+  filter(VH == "H")
+nhl_2021_away <- nhl_2021 %>%
+  filter(VH == "V")
+nhl_2021_wide<-bind_cols(nhl_2021_home,nhl_2021_away)
+
+# tidy wider data
+nhl_2021_wide <- 
+  nhl_2021_wide[, c(1, 2, 22, 3, 4, 24, 5,
+                    25, 6, 26, 7, 27, 8, 28,
+                    9, 29, 10, 30, 11, 31, 12,
+                    32, 13, 33, 14, 34, 15, 35,
+                    16, 36, 17, 18, 19, 20, 21,
+                    23, 37, 38, 39, 40)]
+
+nhl_2021_neat <- 
+  nhl_2021_wide[-c(4, 24, 27, 35:40)]
+
+nhl_2021_neat <-
+  nhl_2021_neat %>%
+  rename("Date" = Date...1,
+         "Rot Home Team" = Rot...2,
+         "HomeTeam" =Team...4,
+         "1st Home Team Goals" = `1st...5`,
+         "2nd Home Team Goals" = `2nd...6`,
+         "3rd Home Team Goals" = `3rd...7`,
+         "FinalHome" = Final...8,
+         "Open Home Team" = Open...9,
+         "CloseHomeTeam" = Close...10,
+         "Puck Line Home Team" = `PuckLine...11`,
+         "Open OU" = `OpenOU...13`,
+         "Close OU" = `CloseOU...35`,
+         "DeadlineInd" = Deadline...17,
+         "Year" = Year...18,
+         "Game ID" = ID...19,
+         "DeadlineDays" = Deadline2...20,
+         "Rot Away Team" = Rot...22,
+         "AwayTeam" =Team...24,
+         "1st Away Team Goals" = `1st...25`,
+         "2nd Away Team Goals" = `2nd...26`,
+         "3rd Away Team Goals" = `3rd...27`,
+         "FinalAway" = Final...28,
+         "Open Away Team" = Open...29,
+         "CloseAwayTeam" = Close...30,
+         "Puck Line Away Team" = `PuckLine...31`,
+  )
+
+# Market Probabilities
+nhl_2021_neat <-
+  nhl_2021_neat %>%
+  mutate(BoundaryProbHome = ifelse(CloseHomeTeam >= 100, 100/(CloseHomeTeam + 100), abs(CloseHomeTeam) / (100 + abs(CloseHomeTeam)))) 
+
+nhl_2021_neat <-
+  nhl_2021_neat %>%
+  mutate(BoundaryProbAway = ifelse(CloseAwayTeam >= 100, 100/(CloseAwayTeam + 100), abs(CloseAwayTeam) / (100 + abs(CloseAwayTeam)))) 
+
+nhl_2021 <- 
+  nhl_2021 %>%
+  mutate(BoundaryProb = ifelse(Close >= 100, 100/(Close + 100), abs(Close) / (100 + abs(Close)))) 
+
+nhl_2021_neat <-
+  nhl_2021_neat %>%
+  mutate(BoundaryProbHome2 = BoundaryProbHome / (BoundaryProbHome + BoundaryProbAway),
+         BoundaryProbAway2 = BoundaryProbAway / (BoundaryProbAway + BoundaryProbHome))
+
+# Making Model Matrix for Home Team Effect
+h121 = model.matrix(~-1+nhl_2021_neat$HomeTeam)
+a121 = model.matrix(~-1+nhl_2021_neat$AwayTeam)
+h1a121 = h121-a121
+h1a1_df21 <- as.data.frame(h1a121)
+h1a1_df21 <-
+  h1a1_df21 %>%
+  mutate(ID = row_number())
+
+# Linear Model
+nhl_2021_neat <-
+  nhl_2021_neat %>%
+  mutate(DeadlineDays = as.numeric(DeadlineDays))
+
+homeandaway_lm21 <- lm(BoundaryProbHome2 ~ h1a121 + DeadlineInd +
+                         DeadlineDays + h1a121 * DeadlineInd + 
+                         h1a121 * DeadlineDays + 
+                         h1a121 * DeadlineInd * DeadlineDays,
+                       data = nhl_2021_neat)
+
+summary(homeandaway_lm21)
+
+plot(homeandaway_lm21)
+
+## Calculating who won/lost trade deadline: Lasso Model
+tidy_coef21 <- tidy(homeandaway_lm21)
+
+# constructing lasso model
+nhl_2021_neat <- 
+  nhl_2021_neat %>%
+  mutate(ID = row_number())
+
+model_subset21 <-
+  nhl_2021_neat %>%
+  select("BoundaryProbHome2", "DeadlineInd",
+         "DeadlineDays", "ID")
+
+model_subset21 <-
+  left_join(model_subset21, h1a1_df21, by = "ID")
+
+model_subset21 <- subset(model_subset21, select = -ID)
+
+# using model.matrix() function
+model_y21 <-
+  model_subset21$BoundaryProbHome2
+
+model_x21 <- model.matrix(BoundaryProbHome2 ~ 
+                            h1a121 + DeadlineInd + 
+                            DeadlineDays + 
+                            h1a121 * DeadlineInd + 
+                            h1a121 * DeadlineDays + 
+                            h1a121 * DeadlineInd * DeadlineDays,
+                          data = model_subset21)[,-1]
+
+# Lasso regression
+fit_lasso_cv21 <- cv.glmnet(model_x21, model_y21, 
+                            alpha = 1)
+
+# finding who won/lost the trade deadline LASSO
+tidy_coeffs21 <- coef(fit_lasso_cv21, s = "lambda.1se")
+tidy_lasso_coef21 <- data.frame(name = tidy_coeffs21@Dimnames[[1]][tidy_coeffs21@i + 1], 
+                                coefficient = tidy_coeffs21@x)
+
+tidy_lasso_coef21 <- rename(tidy_lasso_coef21, term = name)
+
+tidy_lasso_coef21_tot <- left_join(tidy_coef21, tidy_lasso_coef21, by = "term")
+tidy_lasso_coef21_2 <- tidy_lasso_coef21_tot[-c(2:5)] 
+tidy_lasso_coef21_2[is.na(tidy_lasso_coef21_2)] = 0
+
+# transposing df
+tidy_lasso_coef21_2 <- t(tidy_lasso_coef21_2)
+tidy_lasso_coef21_2 <- as.data.frame(tidy_lasso_coef21_2)
+
+# tidying names
+names(tidy_lasso_coef21_2) <- tidy_lasso_coef21_2[1,]
+tidy_lasso_coef21_2 <- tidy_lasso_coef21_2[-1,]
+
+# split by coefficients
+hometeams <- tidy_lasso_coef21_2 %>%
+  select(1:32)
+deadlineind <- tidy_lasso_coef21_2 %>%
+  select(DeadlineInd, 35:65)
+deadlinedays <- tidy_lasso_coef21_2 %>%
+  select(DeadlineDays, 66:96)
+interaction <- tidy_lasso_coef21_2 %>%
+  select(97:128)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:32)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:32)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:32)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
+
+# binding data set together
+tidy_lasso_coef21_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+
+# setting NAs to 0
+tidy_lasso_coef21_3[is.na(tidy_lasso_coef21_3)] <- 0
+
+# tidying
+tidy_lasso_coef21_clean <- tidy_lasso_coef21_3[,-c(5,8,11)]
+names(tidy_lasso_coef21_clean)[1] <- "main_intercept"
+
+tidy_lasso_coef21_clean<-
+  tidy_lasso_coef21_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_lasso_coef21_fin <-
+  tidy_lasso_coef21_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 32 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 32 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+
+
+
+
+# saving data frame of coefficients
+write.csv(tidy_lasso_coef21_fin, "data/coefs2021.csv")
+write.csv(nhl_2021_neat, "data/nhl_2021_neat.csv")
+
+
+# creating a "model" dataset including home team effect and Boundary Prob
+h1a1_df21 <- as.data.frame(h1a121)
+nhl_2021_neat <- 
+  nhl_2021_neat %>%
+  mutate(ID = row_number())
+h1a1_df21 <-
+  h1a1_df21 %>%
+  mutate(ID = row_number())
+
+model_subset21 <-
+  nhl_2021_neat %>%
+  select("BoundaryProbHome2", "BoundaryProbAway2", 
+         "HomeTeam", 
+         "AwayTeam",
+         "DeadlineInd", 
+         "DeadlineDays", "ID")
+
+model_subset21 <- left_join(model_subset21, h1a1_df21,
+                            by = "ID")
+
+model_subset21 <- subset(model_subset21, select = -ID)
+
+model_subset21 <-
+  model_subset21 %>%
+  mutate(DeadlineDays = as.numeric(DeadlineDays))
+
+model_subset21 <-
+  model_subset21 %>%
+  rename("Anaheim" = `nhl_2021_neat$HomeTeamAnaheim`,
+         "Arizona" = `nhl_2021_neat$HomeTeamArizona`,
+         "Boston" =`nhl_2021_neat$HomeTeamBoston`,
+         "Buffalo" = `nhl_2021_neat$HomeTeamBuffalo`,
+         "Calgary" = `nhl_2021_neat$HomeTeamCalgary`,
+         "Carolina" = `nhl_2021_neat$HomeTeamCarolina`,
+         "Chicago" = `nhl_2021_neat$HomeTeamChicago`,
+         "Colorado" = `nhl_2021_neat$HomeTeamColorado`,
+         "Columbus" = `nhl_2021_neat$HomeTeamColumbus`,
+         "Dallas" = `nhl_2021_neat$HomeTeamDallas`,
+         "Detroit" = `nhl_2021_neat$HomeTeamDetroit`,
+         "Edmonton" = `nhl_2021_neat$HomeTeamEdmonton`,
+         "Florida" = `nhl_2021_neat$HomeTeamFlorida`,
+         "LosAngeles" = `nhl_2021_neat$HomeTeamLosAngeles`,
+         "Minnesota" = `nhl_2021_neat$HomeTeamMinnesota`,
+         "Montreal" = `nhl_2021_neat$HomeTeamMontreal`,
+         "Nashville" = `nhl_2021_neat$HomeTeamNashville`,
+         "NewJersey" =`nhl_2021_neat$HomeTeamNewJersey`,
+         "NYIslanders" = `nhl_2021_neat$HomeTeamNYIslanders`,
+         "NYRangers" = `nhl_2021_neat$HomeTeamNYRangers`,
+         "Ottawa" = `nhl_2021_neat$HomeTeamOttawa`,
+         "Philadelphia" = `nhl_2021_neat$HomeTeamPhiladelphia`,
+         "Pittsburgh" = `nhl_2021_neat$HomeTeamPittsburgh`,
+         "SanJose" = `nhl_2021_neat$HomeTeamSanJose`,
+         "St.Louis" = `nhl_2021_neat$HomeTeamSt.Louis`,
+         "TampaBay" = `nhl_2021_neat$HomeTeamTampaBay`,
+         "Toronto" = `nhl_2021_neat$HomeTeamToronto`,
+         "Vancouver" = `nhl_2021_neat$HomeTeamVancouver`,
+         "Vegas" = `nhl_2021_neat$HomeTeamVegas`,
+         "Washington" = `nhl_2021_neat$HomeTeamWashington`,
+         "Winnipeg" = `nhl_2021_neat$HomeTeamWinnipeg`
+  )
+
+write.csv(model_subset21, "data/model_subset21.csv")
+

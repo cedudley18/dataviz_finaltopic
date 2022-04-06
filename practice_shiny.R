@@ -1,4 +1,5 @@
 library(tidyverse)
+library(plotly)
 
 # putting together all of the seasons
 coefs <- read_csv("data/coefs2017.csv")
@@ -13,6 +14,9 @@ model_df18 <- read_csv("data/model_subset18.csv")
 coefs19 <- read_csv("data/coefs2019.csv")
 model_df19 <- read_csv("data/model_subset19.csv")
 
+coefs21 <- read_csv("data/coefs2021.csv")
+model_df21 <- read_csv("data/model_subset21.csv")
+
 coefs <-
   coefs %>%
   mutate(Season = "2017-18")
@@ -25,6 +29,9 @@ coefs18 <-
 coefs19 <-
   coefs19 %>%
   mutate(Season = "2019-20")
+coefs21 <-
+  coefs21 %>%
+  mutate(Season = "2020-21")
 model_df <-
   model_df %>%
   mutate(Season = "2017-18")
@@ -37,18 +44,33 @@ model_df18 <-
 model_df19 <-
   model_df19 %>%
   mutate(Season = "2019-20")
+model_df21 <-
+  model_df21 %>%
+  mutate(Season = "2020-21")
 
 total_coefs <-
-  rbind(coefs16, coefs, coefs18, coefs19)
+  rbind(coefs16, coefs, coefs18, coefs19, coefs21)
 total_modeldf <-
- rbind(model_df16, model_df, model_df18, model_df19)
+ rbind(model_df16, model_df, model_df18, model_df19, model_df21)
 
 # fix the team names
 total_coefs <-
   total_coefs %>%
   mutate(Team = substr(Team, 29, 40))
 
+# get correct amount of days in dataset
+total_coefs <-
+  total_coefs %>%
+  mutate(daysafterdeadline = case_when(Season == "2019-20"~ 16,
+                                       Season == "2018-19" ~ 40,
+                                       Season == "2017-18" ~ 40,
+                                       Season == "2016-17" ~ 40,
+                                       Season == "2020-21" ~ 32),
+         daysbeforedeadline = ifelse(Season == "2020-21", -89, -150))
+
 # App
+
+teams <- levels(factor(total_modeldf$HomeTeam))
 
 library(shiny)
 
@@ -56,16 +78,13 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(selectizeInput(inputId = "teamchoice",
                                 label = "Choose a Team",
-                                choices = as.character(total_modeldf$HomeTeam),
+                                choices = teams,
                                 selected = "Boston"),
                  radioButtons(inputId = "yearselect",
                               label = "Choose a Season",
                               choices = levels(factor(total_coefs$Season)))),
     mainPanel(plotOutput(outputId = "majorplot"),
-              tableOutput(outputId = "table1"),
-              tableOutput(outputId = "table2"),
-              tableOutput(outputId = "table3"),
-              tableOutput(outputId = "table4"))
+              tableOutput(outputId = "table1"))
 ))
 
 server <- function(input, output, session) {
@@ -118,12 +137,14 @@ server <- function(input, output, session) {
       select(Team, diffat40)
   })
   
+  plot1 <- 
+  
  
   
   output$majorplot <- renderPlot({
     ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb)) +
       geom_point() +
-      geom_segment(aes(x = -150, 
+      geom_segment(aes(x = coef_update()$daysbeforedeadline, 
                        y = coef_update()$main_intercept +
                          coef_update()$intercept + 
                          (-150 * (coef_update()$DeadlineDays + coef_update()$deadline_days)),
@@ -134,10 +155,7 @@ server <- function(input, output, session) {
                          coef_update()$intercept + 
                          coef_update()$DeadlineInd +
                          coef_update()$deadline_indicator, 
-                       xend = (coef_update()$predictedend - coef_update()$main_intercept
-                       - coef_update()$intercept - coef_update()$DeadlineInd - 
-                         coef_update()$deadline_indicator) / 
-                         (coef_update()$DeadlineDays + coef_update()$deadline_days), 
+                       xend = coef_update()$daysafterdeadline, 
                        yend = coef_update()$predictedend
                        )) +
       theme_classic() +
@@ -147,19 +165,12 @@ server <- function(input, output, session) {
       
   })
   
-  output$table1 <- renderTable({coef_order1()
-    
-  })
+
   
-  output$table2 <- renderTable({coef_order2()
-    
-  })
-  
-  output$table3 <- renderTable({coef_order3()
-    
-  })
-  
-  output$table4 <- renderTable({coef_order4()
+  output$table1 <- renderTable({cbind(coef_order1(),
+                                      coef_order2(),
+                                      coef_order3(),
+                                      coef_order4())
     
   })
   

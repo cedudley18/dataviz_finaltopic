@@ -15,3 +15,9 @@ Kyle: Project on shinyApp of play by play NFL data with two tabs for graphs on p
 
 Jonathan: Project on looking at cardiovascular data, looking at differences between people with low and high blood pressure and creating logistic regression models to explore relationships between different heart variables.
 
+## April 6
+
+Lilly: Making a portfolio with a bunch of different datasets and ways to visualize all of them.
+
+
+
