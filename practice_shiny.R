@@ -10,6 +10,9 @@ model_df16 <- read_csv("data/model_subset16.csv")
 coefs18 <- read_csv("data/coefs2018.csv")
 model_df18 <- read_csv("data/model_subset18.csv")
 
+coefs19 <- read_csv("data/coefs2019.csv")
+model_df19 <- read_csv("data/model_subset19.csv")
+
 coefs <-
   coefs %>%
   mutate(Season = "2017-18")
@@ -19,6 +22,9 @@ coefs16 <-
 coefs18 <-
   coefs18 %>%
   mutate(Season = "2018-19")
+coefs19 <-
+  coefs19 %>%
+  mutate(Season = "2019-20")
 model_df <-
   model_df %>%
   mutate(Season = "2017-18")
@@ -28,11 +34,14 @@ model_df16 <-
 model_df18 <-
   model_df18 %>%
   mutate(Season = "2018-19")
+model_df19 <-
+  model_df19 %>%
+  mutate(Season = "2019-20")
 
 total_coefs <-
-  rbind(coefs16, coefs, coefs18)
+  rbind(coefs16, coefs, coefs18, coefs19)
 total_modeldf <-
- rbind(model_df16, model_df, model_df18)
+ rbind(model_df16, model_df, model_df18, model_df19)
 
 # fix the team names
 total_coefs <-
@@ -125,7 +134,10 @@ server <- function(input, output, session) {
                          coef_update()$intercept + 
                          coef_update()$DeadlineInd +
                          coef_update()$deadline_indicator, 
-                       xend = 50, 
+                       xend = (coef_update()$predictedend - coef_update()$main_intercept
+                       - coef_update()$intercept - coef_update()$DeadlineInd - 
+                         coef_update()$deadline_indicator) / 
+                         (coef_update()$DeadlineDays + coef_update()$deadline_days), 
                        yend = coef_update()$predictedend
                        )) +
       theme_classic() +

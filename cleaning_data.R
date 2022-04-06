@@ -914,3 +914,311 @@ model_subset18 <-
 
 write.csv(model_subset18, "data/model_subset18.csv")
 
+## 2019-2020
+# loading data
+nhl_2019 <- readxl::read_xlsx("data/nhl odds 2019-20.xlsx")
+
+# trade deadline and date indicator variables
+nhl_2019 <-
+  nhl_2019 %>%
+  mutate(Deadline = as.numeric(Date %in% c(224:929)),
+         Year = as.numeric(Date %in% c(101:929)))
+
+# adding date variable
+nhl_2019 <-
+  nhl_2019 %>%
+  mutate(Date = ifelse(Year == 0, paste(2019, Date, sep = ""),
+                       paste(2020, Date, sep = "0")))
+
+# convert date into a "date"
+nhl_2019 <-
+  nhl_2019 %>%
+  mutate(Date = lubridate::ymd(Date))
+
+# taking out playoff games
+nhl_2019 <-
+  nhl_2019 %>%
+  filter(Date < "2020-8-01")
+
+# making ID variable for game
+nhl_2019$ID <- seq.int(nrow(nhl_2019))
+nhl_2019 <-
+  nhl_2019 %>%
+  mutate(ID = as.integer(ID),
+         ID = ID / 2,
+         ID = ceiling(ID))
+
+# indicator variable for days since trade deadline
+nhl_2019 <-
+  nhl_2019 %>%
+  mutate(Deadline2 = Date - lubridate::ymd(20200224))
+
+# make data wider - each row is one game
+nhl_2019_home <- nhl_2019 %>%
+  filter(VH == "H")
+nhl_2019_away <- nhl_2019 %>%
+  filter(VH == "V")
+nhl_2019_wide<-bind_cols(nhl_2019_home,nhl_2019_away)
+
+# tidy wider data
+nhl_2019_wide <- 
+  nhl_2019_wide[, c(1, 2, 22, 3, 4, 24, 5,
+                    25, 6, 26, 7, 27, 8, 28,
+                    9, 29, 10, 30, 11, 31, 12,
+                    32, 13, 33, 14, 34, 15, 35,
+                    16, 36, 17, 18, 19, 20, 21,
+                    23, 37, 38, 39, 40)]
+
+nhl_2019_neat <- 
+  nhl_2019_wide[-c(4, 24, 27, 35:40)]
+
+nhl_2019_neat <-
+  nhl_2019_neat %>%
+  rename("Date" = Date...1,
+         "Rot Home Team" = Rot...2,
+         "HomeTeam" =Team...4,
+         "1st Home Team Goals" = `1st...5`,
+         "2nd Home Team Goals" = `2nd...6`,
+         "3rd Home Team Goals" = `3rd...7`,
+         "FinalHome" = Final...8,
+         "Open Home Team" = Open...9,
+         "CloseHomeTeam" = Close...10,
+         "Puck Line Home Team" = `PuckLine...11`,
+         "Open OU" = `OpenOU...13`,
+         "Close OU" = `CloseOU...35`,
+         "DeadlineInd" = Deadline...17,
+         "Year" = Year...18,
+         "Game ID" = ID...19,
+         "DeadlineDays" = Deadline2...20,
+         "Rot Away Team" = Rot...22,
+         "AwayTeam" =Team...24,
+         "1st Away Team Goals" = `1st...25`,
+         "2nd Away Team Goals" = `2nd...26`,
+         "3rd Away Team Goals" = `3rd...27`,
+         "FinalAway" = Final...28,
+         "Open Away Team" = Open...29,
+         "CloseAwayTeam" = Close...30,
+         "Puck Line Away Team" = `PuckLine...31`,
+  )
+
+# Market Probabilities
+nhl_2019_neat <-
+  nhl_2019_neat %>%
+  mutate(BoundaryProbHome = ifelse(CloseHomeTeam >= 100, 100/(CloseHomeTeam + 100), abs(CloseHomeTeam) / (100 + abs(CloseHomeTeam)))) 
+
+nhl_2019_neat <-
+  nhl_2019_neat %>%
+  mutate(BoundaryProbAway = ifelse(CloseAwayTeam >= 100, 100/(CloseAwayTeam + 100), abs(CloseAwayTeam) / (100 + abs(CloseAwayTeam)))) 
+
+nhl_2019 <- 
+  nhl_2019 %>%
+  mutate(BoundaryProb = ifelse(Close >= 100, 100/(Close + 100), abs(Close) / (100 + abs(Close)))) 
+
+nhl_2019_neat <-
+  nhl_2019_neat %>%
+  mutate(BoundaryProbHome2 = BoundaryProbHome / (BoundaryProbHome + BoundaryProbAway),
+         BoundaryProbAway2 = BoundaryProbAway / (BoundaryProbAway + BoundaryProbHome))
+
+# Replacing error
+nhl_2019_neat$HomeTeam = 
+  str_replace(nhl_2019_neat$HomeTeam, "Arizonas",
+              "Arizona")
+
+# Making Model Matrix for Home Team Effect
+h119 = model.matrix(~-1+nhl_2019_neat$HomeTeam)
+a119 = model.matrix(~-1+nhl_2019_neat$AwayTeam)
+h1a119 = h119-a119
+h1a1_df19 <- as.data.frame(h1a119)
+h1a1_df19 <-
+  h1a1_df19 %>%
+  mutate(ID = row_number())
+
+# Linear Model
+nhl_2019_neat <-
+  nhl_2019_neat %>%
+  mutate(DeadlineDays = as.numeric(DeadlineDays))
+
+homeandaway_lm19 <- lm(BoundaryProbHome2 ~ h1a119 + DeadlineInd +
+                         DeadlineDays + h1a119 * DeadlineInd + 
+                         h1a119 * DeadlineDays + 
+                         h1a119 * DeadlineInd * DeadlineDays,
+                       data = nhl_2019_neat)
+
+summary(homeandaway_lm19)
+
+plot(homeandaway_lm19)
+
+## Calculating who won/lost trade deadline: Lasso Model
+tidy_coef19 <- tidy(homeandaway_lm19)
+
+# constructing lasso model
+nhl_2019_neat <- 
+  nhl_2019_neat %>%
+  mutate(ID = row_number())
+
+model_subset19 <-
+  nhl_2019_neat %>%
+  select("BoundaryProbHome2", "DeadlineInd",
+         "DeadlineDays", "ID")
+
+model_subset19 <-
+  left_join(model_subset19, h1a1_df19, by = "ID")
+
+model_subset19 <- subset(model_subset19, select = -ID)
+
+# using model.matrix() function
+model_y19 <-
+  model_subset19$BoundaryProbHome2
+
+model_x19 <- model.matrix(BoundaryProbHome2 ~ 
+                            h1a119 + DeadlineInd + 
+                            DeadlineDays + 
+                            h1a119 * DeadlineInd + 
+                            h1a119 * DeadlineDays + 
+                            h1a119 * DeadlineInd * DeadlineDays,
+                          data = model_subset19)[,-1]
+
+# Lasso regression
+fit_lasso_cv19 <- cv.glmnet(model_x19, model_y19, 
+                            alpha = 1)
+
+# finding who won/lost the trade deadline LASSO
+tidy_coeffs19 <- coef(fit_lasso_cv19, s = "lambda.1se")
+tidy_lasso_coef19 <- data.frame(name = tidy_coeffs19@Dimnames[[1]][tidy_coeffs19@i + 1], 
+                                coefficient = tidy_coeffs19@x)
+
+tidy_lasso_coef19 <- rename(tidy_lasso_coef19, term = name)
+
+tidy_lasso_coef19_tot <- left_join(tidy_coef19, tidy_lasso_coef19, by = "term")
+tidy_lasso_coef19_2 <- tidy_lasso_coef19_tot[-c(2:5)] 
+tidy_lasso_coef19_2[is.na(tidy_lasso_coef19_2)] = 0
+
+# transposing df
+tidy_lasso_coef19_2 <- t(tidy_lasso_coef19_2)
+tidy_lasso_coef19_2 <- as.data.frame(tidy_lasso_coef19_2)
+
+# tidying names
+names(tidy_lasso_coef19_2) <- tidy_lasso_coef19_2[1,]
+tidy_lasso_coef19_2 <- tidy_lasso_coef19_2[-1,]
+
+# split by coefficients
+hometeams <- tidy_lasso_coef19_2 %>%
+  select(1:32)
+deadlineind <- tidy_lasso_coef19_2 %>%
+  select(DeadlineInd, 35:65)
+deadlinedays <- tidy_lasso_coef19_2 %>%
+  select(DeadlineDays, 66:96)
+interaction <- tidy_lasso_coef19_2 %>%
+  select(97:128)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:32)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:32)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:32)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
+
+# binding data set together
+tidy_lasso_coef19_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+
+# setting NAs to 0
+tidy_lasso_coef19_3[is.na(tidy_lasso_coef19_3)] <- 0
+
+# tidying
+tidy_lasso_coef19_clean <- tidy_lasso_coef19_3[,-c(5,8,11)]
+names(tidy_lasso_coef19_clean)[1] <- "main_intercept"
+
+tidy_lasso_coef19_clean<-
+  tidy_lasso_coef19_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_lasso_coef19_fin <-
+  tidy_lasso_coef19_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 16 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 16 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+
+
+
+
+# saving data frame of coefficients
+write.csv(tidy_lasso_coef19_fin, "data/coefs2019.csv")
+write.csv(nhl_2019_neat, "data/nhl_2019_neat.csv")
+
+
+# creating a "model" dataset including home team effect and Boundary Prob
+h1a1_df19 <- as.data.frame(h1a119)
+nhl_2019_neat <- 
+  nhl_2019_neat %>%
+  mutate(ID = row_number())
+h1a1_df19 <-
+  h1a1_df19 %>%
+  mutate(ID = row_number())
+
+model_subset19 <-
+  nhl_2019_neat %>%
+  select("BoundaryProbHome2", "BoundaryProbAway2", 
+         "HomeTeam", 
+         "AwayTeam",
+         "DeadlineInd", 
+         "DeadlineDays", "ID")
+
+model_subset19 <- left_join(model_subset19, h1a1_df19,
+                            by = "ID")
+
+model_subset19 <- subset(model_subset19, select = -ID)
+
+model_subset19 <-
+  model_subset19 %>%
+  mutate(DeadlineDays = as.numeric(DeadlineDays))
+
+model_subset19 <-
+  model_subset19 %>%
+  rename("Anaheim" = `nhl_2019_neat$HomeTeamAnaheim`,
+         "Arizona" = `nhl_2019_neat$HomeTeamArizona`,
+         "Boston" =`nhl_2019_neat$HomeTeamBoston`,
+         "Buffalo" = `nhl_2019_neat$HomeTeamBuffalo`,
+         "Calgary" = `nhl_2019_neat$HomeTeamCalgary`,
+         "Carolina" = `nhl_2019_neat$HomeTeamCarolina`,
+         "Chicago" = `nhl_2019_neat$HomeTeamChicago`,
+         "Colorado" = `nhl_2019_neat$HomeTeamColorado`,
+         "Columbus" = `nhl_2019_neat$HomeTeamColumbus`,
+         "Dallas" = `nhl_2019_neat$HomeTeamDallas`,
+         "Detroit" = `nhl_2019_neat$HomeTeamDetroit`,
+         "Edmonton" = `nhl_2019_neat$HomeTeamEdmonton`,
+         "Florida" = `nhl_2019_neat$HomeTeamFlorida`,
+         "LosAngeles" = `nhl_2019_neat$HomeTeamLosAngeles`,
+         "Minnesota" = `nhl_2019_neat$HomeTeamMinnesota`,
+         "Montreal" = `nhl_2019_neat$HomeTeamMontreal`,
+         "Nashville" = `nhl_2019_neat$HomeTeamNashville`,
+         "NewJersey" =`nhl_2019_neat$HomeTeamNewJersey`,
+         "NYIslanders" = `nhl_2019_neat$HomeTeamNYIslanders`,
+         "NYRangers" = `nhl_2019_neat$HomeTeamNYRangers`,
+         "Ottawa" = `nhl_2019_neat$HomeTeamOttawa`,
+         "Philadelphia" = `nhl_2019_neat$HomeTeamPhiladelphia`,
+         "Pittsburgh" = `nhl_2019_neat$HomeTeamPittsburgh`,
+         "SanJose" = `nhl_2019_neat$HomeTeamSanJose`,
+         "St.Louis" = `nhl_2019_neat$HomeTeamSt.Louis`,
+         "TampaBay" = `nhl_2019_neat$HomeTeamTampaBay`,
+         "Toronto" = `nhl_2019_neat$HomeTeamToronto`,
+         "Vancouver" = `nhl_2019_neat$HomeTeamVancouver`,
+         "Vegas" = `nhl_2019_neat$HomeTeamVegas`,
+         "Washington" = `nhl_2019_neat$HomeTeamWashington`,
+         "Winnipeg" = `nhl_2019_neat$HomeTeamWinnipeg`
+  )
+
+write.csv(model_subset19, "data/model_subset19.csv")
