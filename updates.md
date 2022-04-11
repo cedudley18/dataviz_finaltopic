@@ -34,6 +34,9 @@
 
   I added the final season of data and was able to clean up the errors with my Shiny. Now thinking about making my plot interactive.
   
+# April 11 beginning of class
+
+  I created a new variable that will allow us to see the opposing team for each game - for now it is just a color, but I am looking to make this interactive/reactive where you hover over a point and see the opposing team.
 
   
   

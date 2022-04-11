@@ -95,7 +95,9 @@ server <- function(input, output, session) {
       mutate(Teams = paste(HomeTeam, ",", AwayTeam)) %>%
       filter(str_detect(Teams, input$teamchoice)) %>%
       mutate(BoundaryProb = ifelse(HomeTeam == input$teamchoice,
-                                   BoundaryProbHome2, BoundaryProbAway2))
+                                   BoundaryProbHome2, BoundaryProbAway2),
+             OpposingTeam = str_remove(Teams, input$teamchoice)) %>%
+      mutate(OpposingTeam = trimws(OpposingTeam, which = c("both")))
 })
   
   coef_update <- reactive({
@@ -137,12 +139,13 @@ server <- function(input, output, session) {
       select(Team, diffat40)
   })
   
-  plot1 <- 
+  
   
  
   
   output$majorplot <- renderPlot({
-    ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb)) +
+    ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
+                                      color = OpposingTeam)) +
       geom_point() +
       geom_segment(aes(x = coef_update()$daysbeforedeadline, 
                        y = coef_update()$main_intercept +
