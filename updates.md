@@ -34,9 +34,13 @@
 
   I added the final season of data and was able to clean up the errors with my Shiny. Now thinking about making my plot interactive.
   
+<<<<<<< HEAD
 # April 11 beginning of class
 
   I created a new variable that will allow us to see the opposing team for each game - for now it is just a color, but I am looking to make this interactive/reactive where you hover over a point and see the opposing team.
 
+=======
+MH: It's probably a little late for this to be worth it, but you should be able to do what you're doing with the year data sets a bit more programatically with `purrr`. Using `map()` from `purrr` would allow you to read in the year data sets at the same time, perform a set of functions on those data sets, and then combine them at the end.
+>>>>>>> cbd95dae1417ab2a01ceb723f27a9e0ba8271846
   
   
