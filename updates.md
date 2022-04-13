@@ -42,5 +42,10 @@
 =======
 MH: It's probably a little late for this to be worth it, but you should be able to do what you're doing with the year data sets a bit more programatically with `purrr`. Using `map()` from `purrr` would allow you to read in the year data sets at the same time, perform a set of functions on those data sets, and then combine them at the end.
 >>>>>>> cbd95dae1417ab2a01ceb723f27a9e0ba8271846
+
+# April 13 beginning of class
+
+  I turned my shiny into a shiny Plotly where you can hover over the data points.
+
   
   

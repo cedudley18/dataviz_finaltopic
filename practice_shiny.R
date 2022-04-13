@@ -83,7 +83,7 @@ ui <- fluidPage(
                  radioButtons(inputId = "yearselect",
                               label = "Choose a Season",
                               choices = levels(factor(total_coefs$Season)))),
-    mainPanel(plotOutput(outputId = "majorplot"),
+    mainPanel(plotlyOutput(outputId = "majorplot"),
               tableOutput(outputId = "table1"))
 ))
 
@@ -97,7 +97,8 @@ server <- function(input, output, session) {
       mutate(BoundaryProb = ifelse(HomeTeam == input$teamchoice,
                                    BoundaryProbHome2, BoundaryProbAway2),
              OpposingTeam = str_remove(Teams, input$teamchoice)) %>%
-      mutate(OpposingTeam = trimws(OpposingTeam, which = c("both")))
+      mutate(OpposingTeam = trimws(OpposingTeam, which = c("both"))) %>%
+      mutate(OpposingTeam = gsub(",","",OpposingTeam))
 })
   
   coef_update <- reactive({
@@ -141,11 +142,13 @@ server <- function(input, output, session) {
   
   
   
+  
+  
  
   
-  output$majorplot <- renderPlot({
+  output$majorplot <- renderPlotly({
     ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
-                                      color = OpposingTeam)) +
+                                      label = OpposingTeam)) +
       geom_point() +
       geom_segment(aes(x = coef_update()$daysbeforedeadline, 
                        y = coef_update()$main_intercept +
