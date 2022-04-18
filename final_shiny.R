@@ -180,7 +180,13 @@ server <- function(input, output, session) {
                                       coef_order3(),
                                       coef_order4())
     
-  })
+  }, caption = paste("This table displays the top 5 'winners' and 'losers' at 
+  and after the trade deadline. The variable diffat0 refers to the difference in
+                     the two lines at the trade deadline (day 0) and the variable
+                     diffat40 shows the difference between where the first line would
+                     have ended up and where the second line ends up at the end
+                     of the regular season. These two variables are what we used
+                     to measure how well teams did at the deadline."))
   
 }
 

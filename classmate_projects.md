@@ -19,5 +19,8 @@ Jonathan: Project on looking at cardiovascular data, looking at differences betw
 
 Lilly: Making a portfolio with a bunch of different datasets and ways to visualize all of them.
 
+## April 18
+
+Maddox: shinyApp of deliveries by location in New York with different tabs including lineplot, scatterplots, and leaflet for each hospital.
 
 

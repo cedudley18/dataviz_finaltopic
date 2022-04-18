@@ -41,6 +41,12 @@ nhl_2016 <-
   nhl_2016 %>%
   mutate(Deadline2 = Date - lubridate::ymd(20170301))
 
+# indicator variable for whether a team played the day before
+nhl_2016 <-
+  nhl_2016 %>%
+  group_by(Team) %>%
+  mutate(Game = (c(1, diff(Date) > 1)))
+
 # make data wider - each row is one game
 nhl_2016_home<- nhl_2016 %>%
   filter(VH=="H")
@@ -50,18 +56,22 @@ nhl_2016_wide<-bind_cols(nhl_2016_home,nhl_2016_away)
 
 # tidy wider data
 nhl_2016_wide <- 
-  nhl_2016_wide[, c(1, 2, 22, 3, 4, 24, 5, 25, 6, 
-                    26, 7, 27, 8, 28, 9, 29, 10, 30, 
-                    11, 31, 12, 32, 13, 33, 14, 34, 15, 
-                    35, 16, 36, 17, 18, 19, 20, 21, 23, 
-                    37, 38, 39, 40)]
+  nhl_2016_wide[, c(1, 2, 23, 21, 3, 4, 
+                    25, 5, 26, 6, 27, 7, 
+                    28, 8, 29, 9, 30, 10, 
+                    31, 11, 32, 12, 33, 13, 
+                    34, 14, 35, 15, 36, 16, 
+                    37, 17, 18, 19, 20, 22, 
+                    24, 38, 39, 40, 41, 42)]
+
 nhl_2016_neat <- 
-  nhl_2016_wide[-c(4, 24, 27, 35:40)]
+  nhl_2016_wide[-c(5, 25, 28, 36:41)]
 
 nhl_2016_neat <-
   nhl_2016_neat %>%
   rename("Date" = Date...1,
          "Rot Home Team" = Rot...2,
+         "Back2Back Home" = Game...21,
          "HomeTeam" =Team...4,
          "1st Home Team Goals" = `1st...5`,
          "2nd Home Team Goals" = `2nd...6`,
@@ -71,20 +81,21 @@ nhl_2016_neat <-
          "CloseHomeTeam" = Close...10,
          "Puck Line Home Team" = `Puck Line...11`,
          "Open OU" = `Open OU...13`,
-         "Close OU" = `Close OU...35`,
+         "Close OU" = `Close OU...36`,
          "DeadlineInd" = Deadline...17,
          "Year" = Year...18,
          "Game ID" = ID...19,
          "DeadlineDays" = Deadline2...20,
-         "Rot Away Team" = Rot...22,
-         "AwayTeam" =Team...24,
-         "1st Away Team Goals" = `1st...25`,
-         "2nd Away Team Goals" = `2nd...26`,
-         "3rd Away Team Goals" = `3rd...27`,
-         "FinalAway" = Final...28,
-         "Open Away Team" = Open...29,
-         "CloseAwayTeam" = Close...30,
-         "Puck Line Away Team" = `Puck Line...31`,
+         "Rot Away Team" = Rot...23,
+         "AwayTeam" =Team...25,
+         "1st Away Team Goals" = `1st...26`,
+         "2nd Away Team Goals" = `2nd...27`,
+         "3rd Away Team Goals" = `3rd...28`,
+         "FinalAway" = Final...29,
+         "Open Away Team" = Open...30,
+         "CloseAwayTeam" = Close...31,
+         "Puck Line Away Team" = `Puck Line...32`,
+         "Back2Back Away" = Game...42
   )
 
 # market probabilities
@@ -108,6 +119,12 @@ nhl_2016_neat <-
   mutate(BoundaryProbHome2 = BoundaryProbHome / (BoundaryProbHome + BoundaryProbAway),
          BoundaryProbAway2 = BoundaryProbAway / (BoundaryProbAway + BoundaryProbHome))
 
+# fixing back to back
+nhl_2016_neat <-
+  nhl_2016_neat %>%
+  mutate(Back2BackHome = ifelse(`Back2Back Home` == 0, 1, 0),
+         Back2BackAway = ifelse(`Back2Back Away` == 0, 1, 0))
+
 # making model matrix for home team effect
 h116 = model.matrix(~-1+nhl_2016_neat$HomeTeam)
 a116 = model.matrix(~-1+nhl_2016_neat$AwayTeam)
@@ -122,7 +139,12 @@ nhl_2016_neat <-
   nhl_2016_neat %>%
   mutate(DeadlineDays = as.numeric(DeadlineDays))
 
-homeandaway_lm16 <- lm(BoundaryProbHome2 ~ h1a116 + DeadlineInd + DeadlineDays + h1a116 * DeadlineInd + h1a116 * DeadlineDays + h1a116 * DeadlineInd * DeadlineDays,
+homeandaway_lm16 <- lm(BoundaryProbHome2 ~ h1a116 + 
+                         DeadlineInd + DeadlineDays +
+                         Back2BackHome + Back2BackAway +
+                         h1a116 * DeadlineInd + 
+                         h1a116 * DeadlineDays + 
+                         h1a116 * DeadlineInd * DeadlineDays,
                        data = nhl_2016_neat)
 
 summary(homeandaway_lm16)
@@ -139,7 +161,8 @@ nhl_2016_neat <-
 model_subset16 <-
   nhl_2016_neat %>%
   select("BoundaryProbHome2", "DeadlineInd",
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID", "Back2BackHome",
+         "Back2BackAway")
 
 model_subset16 <-
   left_join(model_subset16, h1a1_df16, by = "ID")
@@ -152,7 +175,8 @@ model_y16 <-
 
 model_x16 <- model.matrix(BoundaryProbHome2 ~ 
                             h1a116 + DeadlineInd + 
-                            DeadlineDays + 
+                            DeadlineDays + Back2BackHome +
+                            Back2BackAway +
                             h1a116 * DeadlineInd + 
                             h1a116 * DeadlineDays + 
                             h1a116 * DeadlineInd * DeadlineDays,
@@ -187,11 +211,11 @@ tidy_lasso_coef16_2 <- tidy_lasso_coef16_2[-1,]
 hometeams <- tidy_lasso_coef16_2 %>%
   select(1:31)
 deadlineind <- tidy_lasso_coef16_2 %>%
-  select(DeadlineInd, 34:63)
+  select(DeadlineInd, 36:65)
 deadlinedays <- tidy_lasso_coef16_2 %>%
-  select(DeadlineDays, 64:93)
+  select(DeadlineDays, 66:95)
 interaction <- tidy_lasso_coef16_2 %>%
-  select(94:124)
+  select(96:126)
 
 # making data longer
 hometeams2 <- gather(hometeams, Team, intercept, 2:31)
@@ -201,6 +225,9 @@ interaction2 <- gather(interaction, Team, deadline_interaction, 2:31)
 
 # binding data set together
 tidy_lasso_coef16_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_lasso_coef16_3$Back2BackHome = tidy_lasso_coef16_2$Back2BackHome
+tidy_lasso_coef16_3$Back2BackAway = tidy_lasso_coef16_2$Back2BackAway
+
 
 # setting NAs to 0
 tidy_lasso_coef16_3[is.na(tidy_lasso_coef16_3)] <- 0
@@ -348,6 +375,12 @@ nhl_2017 <-
   nhl_2017 %>%
   mutate(Deadline2 = Date - lubridate::ymd(20180226))
 
+# indicator variable for whether a team played the day before
+nhl_2017 <-
+  nhl_2017 %>%
+  group_by(Team) %>%
+  mutate(Game = (c(1, diff(Date) > 1)))
+
 # make data wider - each row is one game
 nhl_2017_home <- nhl_2017 %>%
   filter(VH == "H")
@@ -357,20 +390,24 @@ nhl_2017_wide<-bind_cols(nhl_2017_home,nhl_2017_away)
 
 # tidy wider data
 nhl_2017_wide <- 
-  nhl_2017_wide[, c(1, 2, 22, 3, 4, 24, 5,
-                    25, 6, 26, 7, 27, 8, 28,
-                    9, 29, 10, 30, 11, 31, 12,
-                    32, 13, 33, 14, 34, 15, 35,
-                    16, 36, 17, 18, 19, 20, 21,
-                    23, 37, 38, 39, 40)]
+  nhl_2017_wide[, c(1, 2, 23, 21, 3, 
+                    4, 25, 5, 26, 6, 
+                    27, 7, 28, 8, 29, 
+                    9, 30, 10, 31, 11, 
+                    32, 12, 33, 13, 34, 
+                    14, 35, 15, 36, 16, 
+                    37, 17, 18, 19, 20, 
+                    22, 24, 38, 39, 40, 
+                    41, 42)]
 
 nhl_2017_neat <- 
-  nhl_2017_wide[-c(4, 24, 27, 35:40)]
+  nhl_2017_wide[-c(5, 25, 28, 36:41)]
 
 nhl_2017_neat <-
   nhl_2017_neat %>%
   rename("Date" = Date...1,
          "Rot Home Team" = Rot...2,
+         "Back2Back Home" = Game...21,
          "HomeTeam" =Team...4,
          "1st Home Team Goals" = `1st...5`,
          "2nd Home Team Goals" = `2nd...6`,
@@ -380,20 +417,21 @@ nhl_2017_neat <-
          "CloseHomeTeam" = Close...10,
          "Puck Line Home Team" = `Puck Line...11`,
          "Open OU" = `Open OU...13`,
-         "Close OU" = `Close OU...35`,
+         "Close OU" = `Close OU...36`,
          "DeadlineInd" = Deadline...17,
          "Year" = Year...18,
          "Game ID" = ID...19,
          "DeadlineDays" = Deadline2...20,
-         "Rot Away Team" = Rot...22,
-         "AwayTeam" =Team...24,
-         "1st Away Team Goals" = `1st...25`,
-         "2nd Away Team Goals" = `2nd...26`,
-         "3rd Away Team Goals" = `3rd...27`,
-         "FinalAway" = Final...28,
-         "Open Away Team" = Open...29,
-         "CloseAwayTeam" = Close...30,
-         "Puck Line Away Team" = `Puck Line...31`,
+         "Rot Away Team" = Rot...23,
+         "AwayTeam" =Team...25,
+         "1st Away Team Goals" = `1st...26`,
+         "2nd Away Team Goals" = `2nd...27`,
+         "3rd Away Team Goals" = `3rd...28`,
+         "FinalAway" = Final...29,
+         "Open Away Team" = Open...30,
+         "CloseAwayTeam" = Close...31,
+         "Puck Line Away Team" = `Puck Line...32`,
+         "Back2Back Away" = Game...42
   )
 
 # Market Probabilities
@@ -414,6 +452,12 @@ nhl_2017_neat <-
   mutate(BoundaryProbHome2 = BoundaryProbHome / (BoundaryProbHome + BoundaryProbAway),
          BoundaryProbAway2 = BoundaryProbAway / (BoundaryProbAway + BoundaryProbHome))
 
+# fixing back to back
+nhl_2017_neat <-
+  nhl_2017_neat %>%
+  mutate(Back2BackHome = ifelse(`Back2Back Home` == 0, 1, 0),
+         Back2BackAway = ifelse(`Back2Back Away` == 0, 1, 0))
+
 # Making Model Matrix for Home Team Effect
 h117 = model.matrix(~-1+nhl_2017_neat$HomeTeam)
 a117 = model.matrix(~-1+nhl_2017_neat$AwayTeam)
@@ -428,7 +472,11 @@ nhl_2017_neat <-
   nhl_2017_neat %>%
   mutate(DeadlineDays = as.numeric(DeadlineDays))
 
-homeandaway_lm17 <- lm(BoundaryProbHome2 ~ h1a117 + DeadlineInd + DeadlineDays + h1a117 * DeadlineInd + h1a117 * DeadlineDays + h1a117 * DeadlineInd * DeadlineDays,
+homeandaway_lm17 <- lm(BoundaryProbHome2 ~ h1a117 + DeadlineInd + 
+                         DeadlineDays + Back2BackHome +
+                         Back2BackAway + h1a117 * DeadlineInd + 
+                         h1a117 * DeadlineDays + 
+                         h1a117 * DeadlineInd * DeadlineDays,
                        data = nhl_2017_neat)
 
 summary(homeandaway_lm17)
@@ -446,7 +494,8 @@ nhl_2017_neat <-
 model_subset17 <-
   nhl_2017_neat %>%
   select("BoundaryProbHome2", "DeadlineInd",
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID", "Back2BackHome",
+         "Back2BackAway")
 
 model_subset17 <-
   left_join(model_subset17, h1a1_df17, by = "ID")
@@ -462,7 +511,8 @@ model_x17 <- model.matrix(BoundaryProbHome2 ~
                             DeadlineDays + 
                             h1a117 * DeadlineInd + 
                             h1a117 * DeadlineDays + 
-                            h1a117 * DeadlineInd * DeadlineDays,
+                            h1a117 * DeadlineInd * DeadlineDays +
+                            Back2BackHome + Back2BackAway,
                           data = model_subset17)[,-1]
 
 # Lasso regression
@@ -492,11 +542,11 @@ tidy_lasso_coef17_2 <- tidy_lasso_coef17_2[-1,]
 hometeams <- tidy_lasso_coef17_2 %>%
   select(1:32)
 deadlineind <- tidy_lasso_coef17_2 %>%
-  select(DeadlineInd, 35:65)
+  select(DeadlineInd, 37:67)
 deadlinedays <- tidy_lasso_coef17_2 %>%
-  select(DeadlineDays, 66:96)
+  select(DeadlineDays, 68:98)
 interaction <- tidy_lasso_coef17_2 %>%
-  select(97:128)
+  select(99:130)
 
 # making data longer
 hometeams2 <- gather(hometeams, Team, intercept, 2:32)
@@ -506,6 +556,8 @@ interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
 
 # binding data set together
 tidy_lasso_coef17_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_lasso_coef17_3$Back2BackHome <- tidy_lasso_coef17_2$Back2BackHome
+tidy_lasso_coef17_3$Back2BackAway <- tidy_lasso_coef17_2$Back2BackAway
 
 # setting NAs to 0
 tidy_lasso_coef17_3[is.na(tidy_lasso_coef17_3)] <- 0
@@ -649,6 +701,12 @@ nhl_2018 <-
   nhl_2018 %>%
   mutate(Deadline2 = Date - lubridate::ymd(20190225))
 
+# indicator variable for whether a team played the day before
+nhl_2018 <-
+  nhl_2018 %>%
+  group_by(Team) %>%
+  mutate(Game = (c(1, diff(Date) > 1)))
+
 # make data wider - each row is one game
 nhl_2018_home <- nhl_2018 %>%
   filter(VH == "H")
@@ -658,20 +716,22 @@ nhl_2018_wide<-bind_cols(nhl_2018_home,nhl_2018_away)
 
 # tidy wider data
 nhl_2018_wide <- 
-  nhl_2018_wide[, c(1, 2, 22, 3, 4, 24, 5,
-                    25, 6, 26, 7, 27, 8, 28,
-                    9, 29, 10, 30, 11, 31, 12,
-                    32, 13, 33, 14, 34, 15, 35,
-                    16, 36, 17, 18, 19, 20, 21,
-                    23, 37, 38, 39, 40)]
+  nhl_2018_wide[, c(1, 2, 23, 21, 3, 4, 
+                    25, 5, 26, 6, 27, 7, 
+                    28, 8, 29, 9, 30, 10, 
+                    31, 11, 32, 12, 33, 13, 
+                    34, 14, 35, 15, 36, 16, 
+                    37, 17, 18, 19, 20, 22, 
+                    24, 38, 39, 40, 41, 42)]
 
 nhl_2018_neat <- 
-  nhl_2018_wide[-c(4, 24, 27, 35:40)]
+  nhl_2018_wide[-c(5, 25, 28, 36:41)]
 
 nhl_2018_neat <-
   nhl_2018_neat %>%
   rename("Date" = Date...1,
          "Rot Home Team" = Rot...2,
+         "Back2Back Home" = Game...21,
          "HomeTeam" =Team...4,
          "1st Home Team Goals" = `1st...5`,
          "2nd Home Team Goals" = `2nd...6`,
@@ -681,20 +741,21 @@ nhl_2018_neat <-
          "CloseHomeTeam" = Close...10,
          "Puck Line Home Team" = `Puck Line...11`,
          "Open OU" = `Open OU...13`,
-         "Close OU" = `Close OU...35`,
+         "Close OU" = `Close OU...36`,
          "DeadlineInd" = Deadline...17,
          "Year" = Year...18,
          "Game ID" = ID...19,
          "DeadlineDays" = Deadline2...20,
-         "Rot Away Team" = Rot...22,
-         "AwayTeam" =Team...24,
-         "1st Away Team Goals" = `1st...25`,
-         "2nd Away Team Goals" = `2nd...26`,
-         "3rd Away Team Goals" = `3rd...27`,
-         "FinalAway" = Final...28,
-         "Open Away Team" = Open...29,
-         "CloseAwayTeam" = Close...30,
-         "Puck Line Away Team" = `Puck Line...31`,
+         "Rot Away Team" = Rot...23,
+         "AwayTeam" =Team...25,
+         "1st Away Team Goals" = `1st...26`,
+         "2nd Away Team Goals" = `2nd...27`,
+         "3rd Away Team Goals" = `3rd...28`,
+         "FinalAway" = Final...29,
+         "Open Away Team" = Open...30,
+         "CloseAwayTeam" = Close...31,
+         "Puck Line Away Team" = `Puck Line...32`,
+         "Back2Back Away" = Game...42
   )
 
 # Market Probabilities
@@ -715,6 +776,11 @@ nhl_2018_neat <-
   mutate(BoundaryProbHome2 = BoundaryProbHome / (BoundaryProbHome + BoundaryProbAway),
          BoundaryProbAway2 = BoundaryProbAway / (BoundaryProbAway + BoundaryProbHome))
 
+nhl_2018_neat <-
+  nhl_2018_neat %>%
+  mutate(Back2BackHome = ifelse(`Back2Back Home` == 0, 1, 0),
+         Back2BackAway = ifelse(`Back2Back Away` == 0, 1, 0))
+
 # Making Model Matrix for Home Team Effect
 h118 = model.matrix(~-1+nhl_2018_neat$HomeTeam)
 a118 = model.matrix(~-1+nhl_2018_neat$AwayTeam)
@@ -730,7 +796,8 @@ nhl_2018_neat <-
   mutate(DeadlineDays = as.numeric(DeadlineDays))
 
 homeandaway_lm18 <- lm(BoundaryProbHome2 ~ h1a118 + DeadlineInd +
-                       DeadlineDays + h1a118 * DeadlineInd + 
+                       DeadlineDays + Back2BackHome + Back2BackAway +
+                         h1a118 * DeadlineInd + 
                          h1a118 * DeadlineDays + 
                          h1a118 * DeadlineInd * DeadlineDays,
                        data = nhl_2018_neat)
@@ -750,7 +817,8 @@ nhl_2018_neat <-
 model_subset18 <-
   nhl_2018_neat %>%
   select("BoundaryProbHome2", "DeadlineInd",
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID", "Back2BackHome",
+         "Back2BackAway")
 
 model_subset18 <-
   left_join(model_subset18, h1a1_df18, by = "ID")
@@ -763,7 +831,8 @@ model_y18 <-
 
 model_x18 <- model.matrix(BoundaryProbHome2 ~ 
                             h1a118 + DeadlineInd + 
-                            DeadlineDays + 
+                            DeadlineDays + Back2BackHome +
+                            Back2BackAway +
                             h1a118 * DeadlineInd + 
                             h1a118 * DeadlineDays + 
                             h1a118 * DeadlineInd * DeadlineDays,
@@ -796,11 +865,11 @@ tidy_lasso_coef18_2 <- tidy_lasso_coef18_2[-1,]
 hometeams <- tidy_lasso_coef18_2 %>%
   select(1:32)
 deadlineind <- tidy_lasso_coef18_2 %>%
-  select(DeadlineInd, 35:65)
+  select(DeadlineInd, 37:67)
 deadlinedays <- tidy_lasso_coef18_2 %>%
-  select(DeadlineDays, 66:96)
+  select(DeadlineDays, 68:98)
 interaction <- tidy_lasso_coef18_2 %>%
-  select(97:128)
+  select(99:130)
 
 # making data longer
 hometeams2 <- gather(hometeams, Team, intercept, 2:32)
@@ -810,6 +879,9 @@ interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
 
 # binding data set together
 tidy_lasso_coef18_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_lasso_coef18_3$Back2BackHome = tidy_lasso_coef18_2$Back2BackHome
+tidy_lasso_coef18_3$Back2BackAway = tidy_lasso_coef18_2$Back2BackAway
+
 
 # setting NAs to 0
 tidy_lasso_coef18_3[is.na(tidy_lasso_coef18_3)] <- 0
