@@ -1,5 +1,4 @@
-library(tidyverse)
-library(plotly)
+library(shiny)
 library(shinydashboard)
 
 # putting together all of the seasons
@@ -52,7 +51,7 @@ model_df21 <-
 total_coefs <-
   rbind(coefs16, coefs, coefs18, coefs19, coefs21)
 total_modeldf <-
- rbind(model_df16, model_df, model_df18, model_df19, model_df21)
+  rbind(model_df16, model_df, model_df18, model_df19, model_df21)
 
 # fix the team names
 total_coefs <-
@@ -73,22 +72,30 @@ total_coefs <-
 
 teams <- levels(factor(total_modeldf$HomeTeam))
 
-library(shiny)
+ui <- dashboardPage(
+  dashboardHeader(title = "Vegas NHL Odds at the Deadline"),
+  dashboardSidebar(),
+  dashboardBody(
+    fluidRow(
+      box(plotOutput("plot1", height = 250)),
+      box(tableOutput("table1")),
+      
+      box(
+        title = "Controls",
+        selectizeInput(inputId = "teamchoice",
+                       label = "Choose a Team",
+                       choices = teams,
+                       selected = "Boston"),
+        radioButtons(inputId = "yearselect",
+                     label = "Choose a Season",
+                     choices = levels(factor(total_coefs$Season))))
+      )
+    )
+  )
 
-ui <- fluidPage(
-  sidebarLayout(
-    sidebarPanel(selectizeInput(inputId = "teamchoice",
-                                label = "Choose a Team",
-                                choices = teams,
-                                selected = "Boston"),
-                 radioButtons(inputId = "yearselect",
-                              label = "Choose a Season",
-                              choices = levels(factor(total_coefs$Season)))),
-    mainPanel(plotlyOutput(outputId = "majorplot"),
-              tableOutput(outputId = "table1"))
-))
 
-server <- function(input, output, session) {
+server <- function(input, output) { 
+  
   model_update <- reactive({
     total_modeldf <-
       total_modeldf %>%
@@ -100,13 +107,13 @@ server <- function(input, output, session) {
              OpposingTeam = str_remove(Teams, input$teamchoice)) %>%
       mutate(OpposingTeam = trimws(OpposingTeam, which = c("both"))) %>%
       mutate(OpposingTeam = gsub(",","",OpposingTeam))
-})
+  })
   
   coef_update <- reactive({
     total_coefs <-
-    total_coefs %>%
+      total_coefs %>%
       filter(Season == input$yearselect,
-        Team == input$teamchoice)
+             Team == input$teamchoice)
   })
   
   coef_order1 <- reactive({
@@ -145,7 +152,7 @@ server <- function(input, output, session) {
   
   
   
- 
+  
   
   output$majorplot <- renderPlotly({
     ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
@@ -164,15 +171,15 @@ server <- function(input, output, session) {
                          coef_update()$deadline_indicator, 
                        xend = coef_update()$daysafterdeadline, 
                        yend = coef_update()$predictedend
-                       )) +
+      )) +
       theme_classic() +
       labs(x = "Days Relative to the Trade Deadline",
            y =  "Vegas's Predicted Probability of Winning",
            title = input$teamchoice)
-      
+    
   })
   
-
+  
   
   output$table1 <- renderTable({cbind(coef_order1(),
                                       coef_order2(),
@@ -181,6 +188,8 @@ server <- function(input, output, session) {
     
   })
   
-}
+  }
 
 shinyApp(ui, server)
+
+

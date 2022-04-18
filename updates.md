@@ -46,6 +46,10 @@ MH: It's probably a little late for this to be worth it, but you should be able 
 # April 13 beginning of class
 
   I turned my shiny into a shiny Plotly where you can hover over the data points.
+  
+# April 18 beginning of class
+
+  I have a good template for a shiny dashboard and fixed my plotly so you only have one variable labeled.
 
   
   

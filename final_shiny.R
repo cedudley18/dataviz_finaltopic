@@ -52,7 +52,7 @@ model_df21 <-
 total_coefs <-
   rbind(coefs16, coefs, coefs18, coefs19, coefs21)
 total_modeldf <-
- rbind(model_df16, model_df, model_df18, model_df19, model_df21)
+  rbind(model_df16, model_df, model_df18, model_df19, model_df21)
 
 # fix the team names
 total_coefs <-
@@ -86,7 +86,7 @@ ui <- fluidPage(
                               choices = levels(factor(total_coefs$Season)))),
     mainPanel(plotlyOutput(outputId = "majorplot"),
               tableOutput(outputId = "table1"))
-))
+  ))
 
 server <- function(input, output, session) {
   model_update <- reactive({
@@ -100,13 +100,13 @@ server <- function(input, output, session) {
              OpposingTeam = str_remove(Teams, input$teamchoice)) %>%
       mutate(OpposingTeam = trimws(OpposingTeam, which = c("both"))) %>%
       mutate(OpposingTeam = gsub(",","",OpposingTeam))
-})
+  })
   
   coef_update <- reactive({
     total_coefs <-
-    total_coefs %>%
+      total_coefs %>%
       filter(Season == input$yearselect,
-        Team == input$teamchoice)
+             Team == input$teamchoice)
   })
   
   coef_order1 <- reactive({
@@ -141,38 +141,39 @@ server <- function(input, output, session) {
       select(Team, diffat40)
   })
   
-  
-  
-  
-  
- 
-  
-  output$majorplot <- renderPlotly({
-    ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
-                                      label = OpposingTeam)) +
-      geom_point() +
-      geom_segment(aes(x = coef_update()$daysbeforedeadline, 
-                       y = coef_update()$main_intercept +
-                         coef_update()$intercept + 
-                         (-150 * (coef_update()$DeadlineDays + coef_update()$deadline_days)),
-                       xend = 0, yend = coef_update()$main_intercept +
-                         coef_update()$intercept)) +
-      geom_segment(aes(x = -0, 
-                       y = coef_update()$main_intercept +
-                         coef_update()$intercept + 
-                         coef_update()$DeadlineInd +
-                         coef_update()$deadline_indicator, 
-                       xend = coef_update()$daysafterdeadline, 
-                       yend = coef_update()$predictedend
-                       )) +
-      theme_classic() +
-      labs(x = "Days Relative to the Trade Deadline",
-           y =  "Vegas's Predicted Probability of Winning",
-           title = input$teamchoice)
-      
+  plot1 <- reactive({ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
+                                             label = OpposingTeam)) +
+    geom_point() +
+    geom_segment(aes(x = coef_update()$daysbeforedeadline, 
+                     y = coef_update()$main_intercept +
+                       coef_update()$intercept + 
+                       (-150 * (coef_update()$DeadlineDays + coef_update()$deadline_days)),
+                     xend = 0, yend = coef_update()$main_intercept +
+                       coef_update()$intercept)) +
+    geom_segment(aes(x = -0, 
+                     y = coef_update()$main_intercept +
+                       coef_update()$intercept + 
+                       coef_update()$DeadlineInd +
+                       coef_update()$deadline_indicator, 
+                     xend = coef_update()$daysafterdeadline, 
+                     yend = coef_update()$predictedend
+    )) +
+    theme_classic() +
+    labs(x = "Days Relative to the Trade Deadline",
+         y =  "Vegas's Predicted Probability of Winning",
+         title = input$teamchoice)
   })
   
-
+  
+  
+  
+  
+  output$majorplot <- renderPlotly({
+    ggplotly(plot1(), tooltip = "label")
+    
+  })
+  
+  
   
   output$table1 <- renderTable({cbind(coef_order1(),
                                       coef_order2(),
