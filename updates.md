@@ -59,4 +59,5 @@ MH: It's probably a little late for this to be worth it, but you should be able 
 
   Have my new back to back variable in the shinyApp and the points are colored by this variable. Can isolate one color by clicking on it.
   
-  
+# April 20 end of class
+  Added a theme, tried to make app look cleaner. Changed table to a data table and will continue to play around with that.

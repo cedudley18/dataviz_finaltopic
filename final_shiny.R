@@ -1,6 +1,7 @@
 library(tidyverse)
 library(plotly)
-library(shinydashboard)
+library(shinythemes)
+library(DT)
 
 # putting together all of the seasons
 coefs <- read_csv("data/coefs2017.csv")
@@ -73,9 +74,12 @@ total_coefs <-
 
 teams <- levels(factor(total_modeldf$HomeTeam))
 
+
 library(shiny)
 
 ui <- fluidPage(
+  titlePanel("Quantifying NHL Trade Deadline Winners and Losers"),
+  theme = shinytheme("journal"),
   sidebarLayout(
     sidebarPanel(selectizeInput(inputId = "teamchoice",
                                 label = "Choose a Team",
@@ -85,7 +89,7 @@ ui <- fluidPage(
                               label = "Choose a Season",
                               choices = levels(factor(total_coefs$Season)))),
     mainPanel(plotlyOutput(outputId = "majorplot"),
-              tableOutput(outputId = "table1"))
+              DT::dataTableOutput(outputId = "table1"))
   ))
 
 server <- function(input, output, session) {
@@ -165,10 +169,8 @@ server <- function(input, output, session) {
     labs(x = "Days Relative to the Trade Deadline",
          y =  "Vegas's Predicted Probability of Winning",
          title = input$teamchoice, 
-         legend = "Back to Back Game")
+         color = "Back to Back Game")
   })
-  
-  
   
   
   
@@ -179,12 +181,12 @@ server <- function(input, output, session) {
   
   
   
-  output$table1 <- renderTable({cbind(coef_order1(),
+  output$table1 <- DT::renderDataTable({cbind(coef_order1(),
                                       coef_order2(),
                                       coef_order3(),
                                       coef_order4())
     
-  }, caption = paste("This table displays the top 5 'winners' and 'losers' at 
+  }, options = list(orderClasses = TRUE), caption = paste("The table below displays the top 5 'winners' and 'losers' at 
   and after the trade deadline. The variable diffat0 refers to the difference in
                      the two lines at the trade deadline (day 0) and the variable
                      diffat40 shows the difference between where the first line would

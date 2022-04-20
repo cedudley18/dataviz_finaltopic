@@ -23,4 +23,9 @@ Lilly: Making a portfolio with a bunch of different datasets and ways to visuali
 
 Maddox: shinyApp of deliveries by location in New York with different tabs including lineplot, scatterplots, and leaflet for each hospital.
 
+## April 20
+
+Alyssa: shinyApp of MLB data where you choose a team (or multiple teams) and see their highest paid players and positions.
+
+
 
