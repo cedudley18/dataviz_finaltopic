@@ -12,7 +12,7 @@ model_df16 <- read_csv("data/model_subset16.csv")
 coefs18 <- read_csv("data/coefs2018.csv")
 model_df18 <- read_csv("data/model_subset18.csv")
 
-frcoefs19 <- read_csv("data/coefs2019.csv")
+coefs19 <- read_csv("data/coefs2019.csv")
 model_df19 <- read_csv("data/model_subset19.csv")
 
 coefs21 <- read_csv("data/coefs2021.csv")
@@ -99,7 +99,10 @@ server <- function(input, output, session) {
                                    BoundaryProbHome2, BoundaryProbAway2),
              OpposingTeam = str_remove(Teams, input$teamchoice)) %>%
       mutate(OpposingTeam = trimws(OpposingTeam, which = c("both"))) %>%
-      mutate(OpposingTeam = gsub(",","",OpposingTeam))
+      mutate(OpposingTeam = gsub(",","",OpposingTeam)) %>%
+      mutate(Back2Back = ifelse(HomeTeam == input$teamchoice,
+                                Back2BackHome, Back2BackAway)) %>%
+      mutate(Back2Back = as.logical(Back2Back))
   })
   
   coef_update <- reactive({
@@ -143,7 +146,7 @@ server <- function(input, output, session) {
   
   plot1 <- reactive({ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
                                              label = OpposingTeam)) +
-    geom_point() +
+    geom_point(aes(color = Back2Back)) +
     geom_segment(aes(x = coef_update()$daysbeforedeadline, 
                      y = coef_update()$main_intercept +
                        coef_update()$intercept + 
@@ -161,7 +164,8 @@ server <- function(input, output, session) {
     theme_classic() +
     labs(x = "Days Relative to the Trade Deadline",
          y =  "Vegas's Predicted Probability of Winning",
-         title = input$teamchoice)
+         title = input$teamchoice, 
+         legend = "Back to Back Game")
   })
   
   

@@ -55,5 +55,8 @@ MH: It's probably a little late for this to be worth it, but you should be able 
 
   Added a caption to my table in shiny. Working to add another variable to my model and my app that shows  whether a team played back to back games. I want to eventually color the points that are the second game of a back to back series.
 
+# April 20 beginning of class
+
+  Have my new back to back variable in the shinyApp and the points are colored by this variable. Can isolate one color by clicking on it.
   
   
