@@ -114,10 +114,19 @@ server <- function(input, output, session) {
                              "Home", "Away")) 
   })
   
-  model_update2 <- reactive({
-    model_update() %>%
-      select(input$colorselect)
+  observe({
+    x <- input$teamchoice
+    
+    updateRadioButtons(session, "colorchoice",
+                       label = paste("radioButtons label", x),
+                       choices = x,
+                       selected = x)
   })
+  
+ #observeEvent(input$teamchoice, {
+ #  updateRadioButtons(session, "colorchoice",
+  #                    choices = model_update()[,c('isHome', 'Back2Back')])
+ #})
   
   coef_update <- reactive({
     total_coefs <-
@@ -160,7 +169,7 @@ server <- function(input, output, session) {
   
   plot1 <- reactive({ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
                                              label = OpposingTeam)) +
-    geom_point(aes(color = model_update2()[,1])) +
+    geom_point(aes(color = input$colorchoice)) +
     geom_segment(aes(x = coef_update()$daysbeforedeadline, 
                      y = coef_update()$main_intercept +
                        coef_update()$intercept + 

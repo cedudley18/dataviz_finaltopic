@@ -65,3 +65,7 @@ MH: It's probably a little late for this to be worth it, but you should be able 
 # April 25 beginning of class
 
   I started to add radio buttons where you can choose what variable you want colored on the scatterplot.
+  
+# April 25 end of class
+
+  Still trying to figure out the second set of radio buttons, now using updateradiobuttons but still not able to get it to work yet.

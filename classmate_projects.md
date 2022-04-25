@@ -27,5 +27,8 @@ Maddox: shinyApp of deliveries by location in New York with different tabs inclu
 
 Alyssa: shinyApp of MLB data where you choose a team (or multiple teams) and see their highest paid players and positions.
 
+## April 25
+
+Nick: blog of housing in Boston and New York including analyses of housing options and a leaflet of the options in Boston
 
 
