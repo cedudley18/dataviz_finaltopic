@@ -87,7 +87,10 @@ ui <- fluidPage(
                                 selected = "Boston"),
                  radioButtons(inputId = "yearselect",
                               label = "Choose a Season",
-                              choices = levels(factor(total_coefs$Season)))),
+                              choices = levels(factor(total_coefs$Season))),
+                 radioButtons(inputId = "colorselect",
+                              label = "Choose How to Color Points",
+                              choices = c("isHome", "Back2Back"))),
     mainPanel(plotlyOutput(outputId = "majorplot"),
               DT::dataTableOutput(outputId = "table1"))
   ))
@@ -106,7 +109,14 @@ server <- function(input, output, session) {
       mutate(OpposingTeam = gsub(",","",OpposingTeam)) %>%
       mutate(Back2Back = ifelse(HomeTeam == input$teamchoice,
                                 Back2BackHome, Back2BackAway)) %>%
-      mutate(Back2Back = as.logical(Back2Back))
+      mutate(Back2Back = as.logical(Back2Back)) %>%
+      mutate(isHome = ifelse(HomeTeam == input$teamchoice,
+                             "Home", "Away")) 
+  })
+  
+  model_update2 <- reactive({
+    model_update() %>%
+      select(input$colorselect)
   })
   
   coef_update <- reactive({
@@ -150,7 +160,7 @@ server <- function(input, output, session) {
   
   plot1 <- reactive({ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
                                              label = OpposingTeam)) +
-    geom_point(aes(color = Back2Back)) +
+    geom_point(aes(color = model_update2()[,1])) +
     geom_segment(aes(x = coef_update()$daysbeforedeadline, 
                      y = coef_update()$main_intercept +
                        coef_update()$intercept + 

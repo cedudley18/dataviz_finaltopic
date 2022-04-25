@@ -61,3 +61,7 @@ MH: It's probably a little late for this to be worth it, but you should be able 
   
 # April 20 end of class
   Added a theme, tried to make app look cleaner. Changed table to a data table and will continue to play around with that.
+  
+# April 25 beginning of class
+
+  I started to add radio buttons where you can choose what variable you want colored on the scatterplot.
