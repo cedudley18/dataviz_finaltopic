@@ -19,6 +19,9 @@ model_df19 <- read_csv("data/model_subset19.csv")
 coefs21 <- read_csv("data/coefs2021.csv")
 model_df21 <- read_csv("data/model_subset21.csv")
 
+coefs22 <- read_csv("data/coefs2022.csv")
+model_df22 <- read_csv("data/model_subset22.csv")
+
 coefs <-
   coefs %>%
   mutate(Season = "2017-18")
@@ -34,6 +37,9 @@ coefs19 <-
 coefs21 <-
   coefs21 %>%
   mutate(Season = "2020-21")
+coefs22 <-
+  coefs22 %>%
+  mutate(Season = "2021-22")
 model_df <-
   model_df %>%
   mutate(Season = "2017-18")
@@ -49,11 +55,14 @@ model_df19 <-
 model_df21 <-
   model_df21 %>%
   mutate(Season = "2020-21")
+model_df22 <-
+  model_df22 %>%
+  mutate(Season = "2021-22")
 
 total_coefs <-
-  rbind(coefs16, coefs, coefs18, coefs19, coefs21)
+  rbind(coefs16, coefs, coefs18, coefs19, coefs21, coefs22)
 total_modeldf <-
-  rbind(model_df16, model_df, model_df18, model_df19, model_df21)
+  rbind(model_df16, model_df, model_df18, model_df19, model_df21, model_df22)
 
 # fix the team names
 total_coefs <-
@@ -67,7 +76,8 @@ total_coefs <-
                                        Season == "2018-19" ~ 40,
                                        Season == "2017-18" ~ 40,
                                        Season == "2016-17" ~ 40,
-                                       Season == "2020-21" ~ 32),
+                                       Season == "2020-21" ~ 32,
+                                       Season == "2021-22" ~ 36),
          daysbeforedeadline = ifelse(Season == "2020-21", -89, -150))
 
 # App

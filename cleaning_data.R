@@ -151,12 +151,61 @@ summary(homeandaway_lm16)
 
 plot(homeandaway_lm16)
 
+# out of sample testing
+set.seed(10)
+n_games <- nrow(nhl_2016_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2016_lin <- nhl_2016_neat[train_i,]
+test_2016_lin <- nhl_2016_neat[test_i,]
+h1a1_train16 <- h1a116[train_i,]
+h1a1_test16 <- h1a116[test_i,]
+
+lin_model_16 <- lm(BoundaryProbHome2 ~ h1a1_train16 + DeadlineInd + 
+                     DeadlineDays + Back2BackHome + Back2BackAway +
+                     h1a1_train16 * DeadlineInd + 
+                     h1a1_train16 * DeadlineDays + 
+                     h1a1_train16 * DeadlineInd * DeadlineDays, 
+                   data = train_2016_lin)
+
+model_1_preds <- predict(lin_model_16, newdata = test_2016_lin)
+model_1_mse <- mean((model_1_preds - test_2016_lin$BoundaryProbHome2)^2)
+
+
 # Calculating who won/lost trade deadline: Lasso
 tidy_coef16 <- tidy(homeandaway_lm16)
 # constructing lasso model
 nhl_2016_neat <- 
   nhl_2016_neat %>%
   mutate(ID = row_number())
+
+# Quadratic Model
+
+quad_2016 <- lm(BoundaryProbHome2 ~ h1a116 + DeadlineInd + Back2BackHome + Back2BackAway +
+                  I(DeadlineDays^2) + h1a116 * DeadlineInd + h1a116 * I(DeadlineDays^2) + h1a116 * DeadlineInd * I(DeadlineDays^2), data = nhl_2016_neat)
+
+
+# Out of sample testing
+
+set.seed(10)
+n_games <- nrow(nhl_2016_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2016_lin <- nhl_2016_neat[train_i,]
+test_2016_lin <- nhl_2016_neat[test_i,]
+h1a1_train16 <- h1a116[train_i,]
+h1a1_test16 <- h1a116[test_i,]
+
+quad_model_16 <- lm(BoundaryProbHome2 ~ h1a1_train16 + Back2BackHome + Back2BackAway +
+                      DeadlineInd + I(DeadlineDays^2) + h1a1_train16 * DeadlineInd + h1a1_train16 * I(DeadlineDays^2) + h1a1_train16 * DeadlineInd * I(DeadlineDays^2),
+                    data = train_2016_lin)
+
+model_1_preds <- predict(quad_model_16, newdata = test_2016_lin)
+model_1_mse <- mean((model_1_preds - test_2016_lin$BoundaryProbHome2)^2)
+
+
 
 model_subset16 <-
   nhl_2016_neat %>%
@@ -185,6 +234,18 @@ model_x16 <- model.matrix(BoundaryProbHome2 ~
 # Lasso regression
 fit_lasso_cv16 <- cv.glmnet(model_x16, model_y16, 
                             alpha = 1)
+# lasso quad
+modelx16_quad <- model.matrix(BoundaryProbHome2 ~ h1a116 +Back2BackHome +
+                                Back2BackAway +
+                                DeadlineInd + I(DeadlineDays^2) + h1a116 * DeadlineInd + 
+                                h1a116 * I(DeadlineDays^2) + h1a116 * 
+                                DeadlineInd * I(DeadlineDays^2),
+                              data = model_subset16)[,-1]
+fit_lasso_quad16 <- cv.glmnet(modelx16_quad, model_y16, 
+                              alpha = 1)
+  
+sqrt(mean(fit_lasso_quad16$cvm))
+
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs16 <- coef(fit_lasso_cv16, s = "lambda.1se")
@@ -280,7 +341,9 @@ model_subset16 <-
          "HomeTeam", 
          "AwayTeam",
          "DeadlineInd", 
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID",
+         "Back2BackHome",
+         "Back2BackAway")
 
 model_subset16 <- left_join(model_subset16, h1a1_df16,
                           by = "ID")
@@ -326,11 +389,15 @@ model_subset16 <-
   )
 
 
-# Need to add Vegas, which will just be 0
+# Need to add Vegas and Seattle, which will just be 0
 model_subset16 <-
   model_subset16 %>%
   mutate(Vegas = 0)
-model_subset16 = model_subset16[,c(1:34, 37, 35, 36)]
+model_subset16 <-
+  model_subset16 %>%
+  mutate(Seattle = 0)
+
+# model_subset16 = model_subset16[,c(1:34, 37, 35, 36)]
 
 
 write.csv(model_subset16, "data/model_subset16.csv")
@@ -518,6 +585,63 @@ model_x17 <- model.matrix(BoundaryProbHome2 ~
 # Lasso regression
 fit_lasso_cv17 <- cv.glmnet(model_x17, model_y17, 
                           alpha = 1)
+modelx17_quad <- model.matrix(BoundaryProbHome2 ~ h1a117 +Back2BackHome +
+                                Back2BackAway +
+                                DeadlineInd + I(DeadlineDays^2) + h1a117 * DeadlineInd + 
+                                h1a117 * I(DeadlineDays^2) + h1a117 * 
+                                DeadlineInd * I(DeadlineDays^2),
+                              data = model_subset17)[,-1]
+fit_lasso_quad17 <- cv.glmnet(modelx17_quad, model_y17, 
+                              alpha = 1)
+
+sqrt(mean(fit_lasso_cv17$cvm))
+sqrt(mean(fit_lasso_quad17$cvm))
+
+
+# out of sample testing
+# out of sample testing
+set.seed(10)
+n_games <- nrow(nhl_2017_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2017_lin <- nhl_2017_neat[train_i,]
+test_2017_lin <- nhl_2017_neat[test_i,]
+h1a1_train17 <- h1a117[train_i,]
+h1a1_test17 <- h1a117[test_i,]
+
+lin_model_17 <- lm(BoundaryProbHome2 ~ h1a1_train17 + DeadlineInd + 
+                     DeadlineDays + Back2BackHome + Back2BackAway +
+                     h1a1_train17 * DeadlineInd + 
+                     h1a1_train17 * DeadlineDays + 
+                     h1a1_train17 * DeadlineInd * DeadlineDays, 
+                   data = train_2017_lin)
+
+test_2017_lin <- test_2017_lin[-c(636) ,]
+
+model_1_preds <- predict(lin_model_17, newdata = test_2017_lin)
+model_1_mse <- mean((model_1_preds - test_2017_lin$BoundaryProbHome2)^2)
+
+# quad out of sample
+set.seed(10)
+n_games <- nrow(nhl_2017_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2017_lin <- nhl_2017_neat[train_i,]
+test_2017_lin <- nhl_2017_neat[test_i,]
+h1a1_train17 <- h1a117[train_i,]
+h1a1_test17 <- h1a117[test_i,]
+
+quad_model_17 <- lm(BoundaryProbHome2 ~ h1a1_train17 + Back2BackHome + Back2BackAway +
+                      DeadlineInd + I(DeadlineDays^2) + h1a1_train17 * DeadlineInd + h1a1_train17 * I(DeadlineDays^2) + h1a1_train17 * DeadlineInd * I(DeadlineDays^2),
+                    data = train_2017_lin)
+test_2017_lin <- test_2017_lin[-c(636) ,]
+
+model_1_preds <- predict(quad_model_17, newdata = test_2017_lin)
+model_1_mse <- mean((model_1_preds - test_2017_lin$BoundaryProbHome2)^2)
+
+
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs17 <- coef(fit_lasso_cv17, s = "lambda.1se")
@@ -614,7 +738,9 @@ model_subset <-
          "HomeTeam", 
          "AwayTeam",
          "DeadlineInd", 
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID",
+         "Back2BackHome",
+         "Back2BackAway")
 
 model_subset <- left_join(model_subset, h1a1_df,
                           by = "ID")
@@ -659,6 +785,10 @@ model_subset17 <-
          "Washington" = `nhl_2017_neat$HomeTeamWashington`,
          "Winnipeg" = `nhl_2017_neat$HomeTeamWinnipeg`
   )
+# Seattle
+model_subset17 <-
+  model_subset17 %>%
+  mutate(Seattle = 0)
 
 write.csv(model_subset17, "data/model_subset.csv")
 
@@ -806,6 +936,7 @@ summary(homeandaway_lm18)
 
 plot(homeandaway_lm18)
 
+
 ## Calculating who won/lost trade deadline: Lasso Model
 tidy_coef18 <- tidy(homeandaway_lm18)
 
@@ -841,6 +972,104 @@ model_x18 <- model.matrix(BoundaryProbHome2 ~
 # Lasso regression
 fit_lasso_cv18 <- cv.glmnet(model_x18, model_y18, 
                             alpha = 1)
+
+modelx18_quad <- model.matrix(BoundaryProbHome2 ~ h1a118 +Back2BackHome +
+                                Back2BackAway +
+                                DeadlineInd + I(DeadlineDays^2) + h1a118 * DeadlineInd + 
+                                h1a118 * I(DeadlineDays^2) + h1a118 * 
+                                DeadlineInd * I(DeadlineDays^2),
+                              data = model_subset18)[,-1]
+fit_lasso_quad18 <- cv.glmnet(modelx18_quad, model_y18, 
+                              alpha = 1)
+
+sqrt(mean(fit_lasso_cv18$cvm))
+sqrt(mean(fit_lasso_quad18$cvm))
+
+
+# out of sample testing
+# out of sample testing
+set.seed(10)
+n_games <- nrow(nhl_2018_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2018_lin <- nhl_2018_neat[train_i,]
+test_2018_lin <- nhl_2018_neat[test_i,]
+h1a1_train18 <- h1a118[train_i,]
+h1a1_test18 <- h1a118[test_i,]
+
+lin_model_18 <- lm(BoundaryProbHome2 ~ h1a1_train18 + DeadlineInd + 
+                     DeadlineDays + Back2BackHome + Back2BackAway +
+                     h1a1_train18 * DeadlineInd + 
+                     h1a1_train18 * DeadlineDays + 
+                     h1a1_train18 * DeadlineInd * DeadlineDays, 
+                   data = train_2018_lin)
+
+test_2018_lin <- test_2018_lin[-c(636), ]
+
+model_1_preds <- predict(lin_model_18, newdata = test_2018_lin)
+model_1_mse <- mean((model_1_preds - test_2018_lin$BoundaryProbHome2)^2)
+
+# quad out of sample
+set.seed(10)
+n_games <- nrow(nhl_2018_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2018_lin <- nhl_2018_neat[train_i,]
+test_2018_lin <- nhl_2018_neat[test_i,]
+h1a1_train18 <- h1a118[train_i,]
+h1a1_test18 <- h1a118[test_i,]
+
+quad_model_18 <- lm(BoundaryProbHome2 ~ h1a1_train18 + Back2BackHome + Back2BackAway +
+                      DeadlineInd + I(DeadlineDays^2) + h1a1_train18 * DeadlineInd + h1a1_train18 * I(DeadlineDays^2) + h1a1_train18 * DeadlineInd * I(DeadlineDays^2),
+                    data = train_2018_lin)
+
+test_2018_lin <- test_2018_lin[-c(636), ]
+
+model_1_preds <- predict(quad_model_18, newdata = test_2018_lin)
+model_1_mse <- mean((model_1_preds - test_2018_lin$BoundaryProbHome2)^2)
+
+
+# quick sidebar graph of coefficients
+tidy18 <- tidy(fit_lasso_cv18$glmnet.fit)
+
+tidy18 <-
+  tidy18 %>%
+  mutate(term = str_remove(term, "h1a118nhl_2018_neat"),
+         term = gsub("\\$", "", term),
+         term = str_remove(term, "HomeTeam"))
+
+tidy18 %>%
+  filter(lambda == fit_lasso_cv18$lambda.1se) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  filter(estimate > 0.003) %>%
+  ggplot(aes(x = term, y = estimate,
+             fill = coef_sign)) + 
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkblue"),
+                    guide = FALSE) +
+  coord_flip() +
+  labs(y = "Coefficient Estimate",
+       x = "Term")+ 
+  theme_bw()
+
+tidy18 %>%
+  filter(lambda == fit_lasso_cv18$lambda.1se) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  filter(estimate < -0.003) %>%
+  ggplot(aes(x = term, y = estimate,
+             fill = coef_sign)) + 
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkred"),
+                    guide = FALSE) +
+  coord_flip() +
+  labs(y = "Coefficient Estimate",
+       x = "Term")+ 
+  theme_bw()
+
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs18 <- coef(fit_lasso_cv18, s = "lambda.1se")
@@ -938,7 +1167,8 @@ model_subset18 <-
          "HomeTeam", 
          "AwayTeam",
          "DeadlineInd", 
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID",
+         "Back2BackHome", "Back2BackAway")
 
 model_subset18 <- left_join(model_subset18, h1a1_df18,
                           by = "ID")
@@ -983,6 +1213,9 @@ model_subset18 <-
          "Washington" = `nhl_2018_neat$HomeTeamWashington`,
          "Winnipeg" = `nhl_2018_neat$HomeTeamWinnipeg`
   )
+model_subset18 <-
+  model_subset18 %>%
+  mutate(Seattle = 0)
 
 write.csv(model_subset18, "data/model_subset18.csv")
 
@@ -1025,6 +1258,12 @@ nhl_2019 <-
   nhl_2019 %>%
   mutate(Deadline2 = Date - lubridate::ymd(20200224))
 
+# indicator variable for whether a team played the day before
+nhl_2019 <-
+  nhl_2019 %>%
+  group_by(Team) %>%
+  mutate(Game = (c(1, diff(Date) > 1)))
+
 # make data wider - each row is one game
 nhl_2019_home <- nhl_2019 %>%
   filter(VH == "H")
@@ -1034,20 +1273,22 @@ nhl_2019_wide<-bind_cols(nhl_2019_home,nhl_2019_away)
 
 # tidy wider data
 nhl_2019_wide <- 
-  nhl_2019_wide[, c(1, 2, 22, 3, 4, 24, 5,
-                    25, 6, 26, 7, 27, 8, 28,
-                    9, 29, 10, 30, 11, 31, 12,
-                    32, 13, 33, 14, 34, 15, 35,
-                    16, 36, 17, 18, 19, 20, 21,
-                    23, 37, 38, 39, 40)]
+  nhl_2019_wide[, c(1, 2, 23, 21, 3, 4, 
+                    25, 5, 26, 6, 27, 7, 
+                    28, 8, 29, 9, 30, 10, 
+                    31, 11, 32, 12, 33, 
+                    13, 34, 14, 35, 15, 36, 
+                    16, 37, 17, 18, 19, 20, 
+                    22, 24, 38, 39, 40, 41, 42)]
 
 nhl_2019_neat <- 
-  nhl_2019_wide[-c(4, 24, 27, 35:40)]
+  nhl_2019_wide[-c(5, 25, 28, 36:41)]
 
 nhl_2019_neat <-
   nhl_2019_neat %>%
   rename("Date" = Date...1,
          "Rot Home Team" = Rot...2,
+         "Back2Back Home" = Game...21,
          "HomeTeam" =Team...4,
          "1st Home Team Goals" = `1st...5`,
          "2nd Home Team Goals" = `2nd...6`,
@@ -1057,20 +1298,21 @@ nhl_2019_neat <-
          "CloseHomeTeam" = Close...10,
          "Puck Line Home Team" = `PuckLine...11`,
          "Open OU" = `OpenOU...13`,
-         "Close OU" = `CloseOU...35`,
+         "Close OU" = `CloseOU...36`,
          "DeadlineInd" = Deadline...17,
          "Year" = Year...18,
          "Game ID" = ID...19,
          "DeadlineDays" = Deadline2...20,
-         "Rot Away Team" = Rot...22,
-         "AwayTeam" =Team...24,
-         "1st Away Team Goals" = `1st...25`,
-         "2nd Away Team Goals" = `2nd...26`,
-         "3rd Away Team Goals" = `3rd...27`,
-         "FinalAway" = Final...28,
-         "Open Away Team" = Open...29,
-         "CloseAwayTeam" = Close...30,
-         "Puck Line Away Team" = `PuckLine...31`,
+         "Rot Away Team" = Rot...23,
+         "AwayTeam" =Team...25,
+         "1st Away Team Goals" = `1st...26`,
+         "2nd Away Team Goals" = `2nd...27`,
+         "3rd Away Team Goals" = `3rd...28`,
+         "FinalAway" = Final...29,
+         "Open Away Team" = Open...30,
+         "CloseAwayTeam" = Close...31,
+         "Puck Line Away Team" = `PuckLine...32`,
+         "Back2Back Away" = Game...42
   )
 
 # Market Probabilities
@@ -1090,6 +1332,12 @@ nhl_2019_neat <-
   nhl_2019_neat %>%
   mutate(BoundaryProbHome2 = BoundaryProbHome / (BoundaryProbHome + BoundaryProbAway),
          BoundaryProbAway2 = BoundaryProbAway / (BoundaryProbAway + BoundaryProbHome))
+
+# fixing back to back
+nhl_2019_neat <-
+  nhl_2019_neat %>%
+  mutate(Back2BackHome = ifelse(`Back2Back Home` == 0, 1, 0),
+         Back2BackAway = ifelse(`Back2Back Away` == 0, 1, 0))
 
 # Replacing error
 nhl_2019_neat$HomeTeam = 
@@ -1111,6 +1359,7 @@ nhl_2019_neat <-
   mutate(DeadlineDays = as.numeric(DeadlineDays))
 
 homeandaway_lm19 <- lm(BoundaryProbHome2 ~ h1a119 + DeadlineInd +
+                         Back2BackHome + Back2BackAway +
                          DeadlineDays + h1a119 * DeadlineInd + 
                          h1a119 * DeadlineDays + 
                          h1a119 * DeadlineInd * DeadlineDays,
@@ -1131,7 +1380,8 @@ nhl_2019_neat <-
 model_subset19 <-
   nhl_2019_neat %>%
   select("BoundaryProbHome2", "DeadlineInd",
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID", "Back2BackHome",
+         "Back2BackAway")
 
 model_subset19 <-
   left_join(model_subset19, h1a1_df19, by = "ID")
@@ -1145,6 +1395,7 @@ model_y19 <-
 model_x19 <- model.matrix(BoundaryProbHome2 ~ 
                             h1a119 + DeadlineInd + 
                             DeadlineDays + 
+                            Back2BackHome + Back2BackAway +
                             h1a119 * DeadlineInd + 
                             h1a119 * DeadlineDays + 
                             h1a119 * DeadlineInd * DeadlineDays,
@@ -1153,6 +1404,60 @@ model_x19 <- model.matrix(BoundaryProbHome2 ~
 # Lasso regression
 fit_lasso_cv19 <- cv.glmnet(model_x19, model_y19, 
                             alpha = 1)
+modelx19_quad <- model.matrix(BoundaryProbHome2 ~ h1a119 +Back2BackHome +
+                                Back2BackAway +
+                                DeadlineInd + I(DeadlineDays^2) + h1a119 * DeadlineInd + 
+                                h1a119 * I(DeadlineDays^2) + h1a119 * 
+                                DeadlineInd * I(DeadlineDays^2),
+                              data = model_subset19)[,-1]
+fit_lasso_quad19 <- cv.glmnet(modelx19_quad, model_y19, 
+                              alpha = 1)
+
+sqrt(mean(fit_lasso_cv19$cvm))
+sqrt(mean(fit_lasso_quad19$cvm))
+
+
+# out of sample testing
+# out of sample testing
+set.seed(10)
+n_games <- nrow(nhl_2019_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2019_lin <- nhl_2019_neat[train_i,]
+test_2019_lin <- nhl_2019_neat[test_i,]
+h1a1_train19 <- h1a119[train_i,]
+h1a1_test19 <- h1a119[test_i,]
+
+lin_model_19 <- lm(BoundaryProbHome2 ~ h1a1_train19 + DeadlineInd + 
+                     DeadlineDays + Back2BackHome + Back2BackAway +
+                     h1a1_train19 * DeadlineInd + 
+                     h1a1_train19 * DeadlineDays + 
+                     h1a1_train19 * DeadlineInd * DeadlineDays, 
+                   data = train_2019_lin)
+
+
+model_1_preds <- predict(lin_model_19, newdata = test_2019_lin)
+model_1_mse <- mean((model_1_preds - test_2019_lin$BoundaryProbHome2)^2)
+
+# quad out of sample
+set.seed(10)
+n_games <- nrow(nhl_2019_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2019_lin <- nhl_2019_neat[train_i,]
+test_2019_lin <- nhl_2019_neat[test_i,]
+h1a1_train19 <- h1a119[train_i,]
+h1a1_test19 <- h1a119[test_i,]
+
+quad_model_19 <- lm(BoundaryProbHome2 ~ h1a1_train19 + Back2BackHome + Back2BackAway +
+                      DeadlineInd + I(DeadlineDays^2) + h1a1_train19 * DeadlineInd + h1a1_train19 * I(DeadlineDays^2) + h1a1_train19 * DeadlineInd * I(DeadlineDays^2),
+                    data = train_2019_lin)
+
+
+model_1_preds <- predict(quad_model_19, newdata = test_2019_lin)
+model_1_mse <- mean((model_1_preds - test_2019_lin$BoundaryProbHome2)^2)
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs19 <- coef(fit_lasso_cv19, s = "lambda.1se")
@@ -1177,11 +1482,11 @@ tidy_lasso_coef19_2 <- tidy_lasso_coef19_2[-1,]
 hometeams <- tidy_lasso_coef19_2 %>%
   select(1:32)
 deadlineind <- tidy_lasso_coef19_2 %>%
-  select(DeadlineInd, 35:65)
+  select(DeadlineInd, 37:67)
 deadlinedays <- tidy_lasso_coef19_2 %>%
-  select(DeadlineDays, 66:96)
+  select(DeadlineDays, 68:98)
 interaction <- tidy_lasso_coef19_2 %>%
-  select(97:128)
+  select(99:130)
 
 # making data longer
 hometeams2 <- gather(hometeams, Team, intercept, 2:32)
@@ -1191,6 +1496,8 @@ interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
 
 # binding data set together
 tidy_lasso_coef19_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_lasso_coef19_3$Back2BackHome = tidy_lasso_coef19_2$Back2BackHome
+tidy_lasso_coef19_3$Back2BackAway = tidy_lasso_coef19_2$Back2BackAway
 
 # setting NAs to 0
 tidy_lasso_coef19_3[is.na(tidy_lasso_coef19_3)] <- 0
@@ -1247,7 +1554,9 @@ model_subset19 <-
          "HomeTeam", 
          "AwayTeam",
          "DeadlineInd", 
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID",
+         "Back2BackHome",
+         "Back2BackAway")
 
 model_subset19 <- left_join(model_subset19, h1a1_df19,
                             by = "ID")
@@ -1293,6 +1602,10 @@ model_subset19 <-
          "Winnipeg" = `nhl_2019_neat$HomeTeamWinnipeg`
   )
 
+# Seattle
+model_subset19 <-
+  model_subset19 %>%
+  mutate(Seattle = 0)
 write.csv(model_subset19, "data/model_subset19.csv")
 
 ## 2020-2021
@@ -1334,6 +1647,12 @@ nhl_2021 <-
   nhl_2021 %>%
   mutate(Deadline2 = Date - lubridate::ymd(20210412))
 
+# indicator variable for whether a team played the day before
+nhl_2021 <-
+  nhl_2021 %>%
+  group_by(Team) %>%
+  mutate(Game = (c(1, diff(Date) > 1)))
+
 # make data wider - each row is one game
 nhl_2021_home <- nhl_2021 %>%
   filter(VH == "H")
@@ -1343,20 +1662,22 @@ nhl_2021_wide<-bind_cols(nhl_2021_home,nhl_2021_away)
 
 # tidy wider data
 nhl_2021_wide <- 
-  nhl_2021_wide[, c(1, 2, 22, 3, 4, 24, 5,
-                    25, 6, 26, 7, 27, 8, 28,
-                    9, 29, 10, 30, 11, 31, 12,
-                    32, 13, 33, 14, 34, 15, 35,
-                    16, 36, 17, 18, 19, 20, 21,
-                    23, 37, 38, 39, 40)]
+  nhl_2021_wide[, c(1, 2, 23, 21, 3, 4, 
+                    25, 5, 26, 6, 27, 7, 
+                    28, 8, 29, 9, 30, 10, 
+                    31, 11, 32, 12, 33, 13, 
+                    34, 14, 35, 15, 36, 16, 
+                    37, 17, 18, 19, 20, 22, 
+                    24, 38, 39, 40, 41, 42)]
 
 nhl_2021_neat <- 
-  nhl_2021_wide[-c(4, 24, 27, 35:40)]
+  nhl_2021_wide[-c(5, 25, 28, 36:41)]
 
 nhl_2021_neat <-
   nhl_2021_neat %>%
   rename("Date" = Date...1,
          "Rot Home Team" = Rot...2,
+         "Back2Back Home" = Game...21,
          "HomeTeam" =Team...4,
          "1st Home Team Goals" = `1st...5`,
          "2nd Home Team Goals" = `2nd...6`,
@@ -1366,20 +1687,21 @@ nhl_2021_neat <-
          "CloseHomeTeam" = Close...10,
          "Puck Line Home Team" = `PuckLine...11`,
          "Open OU" = `OpenOU...13`,
-         "Close OU" = `CloseOU...35`,
+         "Close OU" = `CloseOU...36`,
          "DeadlineInd" = Deadline...17,
          "Year" = Year...18,
          "Game ID" = ID...19,
          "DeadlineDays" = Deadline2...20,
-         "Rot Away Team" = Rot...22,
-         "AwayTeam" =Team...24,
-         "1st Away Team Goals" = `1st...25`,
-         "2nd Away Team Goals" = `2nd...26`,
-         "3rd Away Team Goals" = `3rd...27`,
-         "FinalAway" = Final...28,
-         "Open Away Team" = Open...29,
-         "CloseAwayTeam" = Close...30,
-         "Puck Line Away Team" = `PuckLine...31`,
+         "Rot Away Team" = Rot...23,
+         "AwayTeam" =Team...25,
+         "1st Away Team Goals" = `1st...26`,
+         "2nd Away Team Goals" = `2nd...27`,
+         "3rd Away Team Goals" = `3rd...28`,
+         "FinalAway" = Final...29,
+         "Open Away Team" = Open...30,
+         "CloseAwayTeam" = Close...31,
+         "Puck Line Away Team" = `PuckLine...32`,
+         "Back2Back Away" = Game...42
   )
 
 # Market Probabilities
@@ -1400,6 +1722,12 @@ nhl_2021_neat <-
   mutate(BoundaryProbHome2 = BoundaryProbHome / (BoundaryProbHome + BoundaryProbAway),
          BoundaryProbAway2 = BoundaryProbAway / (BoundaryProbAway + BoundaryProbHome))
 
+# fixing back to back
+nhl_2021_neat <-
+  nhl_2021_neat %>%
+  mutate(Back2BackHome = ifelse(`Back2Back Home` == 0, 1, 0),
+         Back2BackAway = ifelse(`Back2Back Away` == 0, 1, 0))
+
 # Making Model Matrix for Home Team Effect
 h121 = model.matrix(~-1+nhl_2021_neat$HomeTeam)
 a121 = model.matrix(~-1+nhl_2021_neat$AwayTeam)
@@ -1415,7 +1743,8 @@ nhl_2021_neat <-
   mutate(DeadlineDays = as.numeric(DeadlineDays))
 
 homeandaway_lm21 <- lm(BoundaryProbHome2 ~ h1a121 + DeadlineInd +
-                         DeadlineDays + h1a121 * DeadlineInd + 
+                         DeadlineDays + Back2BackHome + Back2BackAway +
+                         h1a121 * DeadlineInd + 
                          h1a121 * DeadlineDays + 
                          h1a121 * DeadlineInd * DeadlineDays,
                        data = nhl_2021_neat)
@@ -1435,7 +1764,8 @@ nhl_2021_neat <-
 model_subset21 <-
   nhl_2021_neat %>%
   select("BoundaryProbHome2", "DeadlineInd",
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID", "Back2BackHome",
+         "Back2BackAway")
 
 model_subset21 <-
   left_join(model_subset21, h1a1_df21, by = "ID")
@@ -1448,7 +1778,8 @@ model_y21 <-
 
 model_x21 <- model.matrix(BoundaryProbHome2 ~ 
                             h1a121 + DeadlineInd + 
-                            DeadlineDays + 
+                            DeadlineDays + Back2BackHome +
+                            Back2BackAway +
                             h1a121 * DeadlineInd + 
                             h1a121 * DeadlineDays + 
                             h1a121 * DeadlineInd * DeadlineDays,
@@ -1457,6 +1788,102 @@ model_x21 <- model.matrix(BoundaryProbHome2 ~
 # Lasso regression
 fit_lasso_cv21 <- cv.glmnet(model_x21, model_y21, 
                             alpha = 1)
+modelx21_quad <- model.matrix(BoundaryProbHome2 ~ h1a121 +Back2BackHome +
+                                Back2BackAway +
+                                DeadlineInd + I(DeadlineDays^2) + h1a121 * DeadlineInd + 
+                                h1a121 * I(DeadlineDays^2) + h1a121 * 
+                                DeadlineInd * I(DeadlineDays^2),
+                              data = model_subset21)[,-1]
+fit_lasso_quad21 <- cv.glmnet(modelx21_quad, model_y21, 
+                              alpha = 1)
+
+sqrt(mean(fit_lasso_cv21$cvm))
+sqrt(mean(fit_lasso_quad21$cvm))
+
+
+# out of sample testing
+# out of sample testing
+set.seed(10)
+n_games <- nrow(nhl_2021_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2021_lin <- nhl_2021_neat[train_i,]
+test_2021_lin <- nhl_2021_neat[test_i,]
+h1a1_train21 <- h1a121[train_i,]
+h1a1_test21 <- h1a121[test_i,]
+
+lin_model_21 <- lm(BoundaryProbHome2 ~ h1a1_train21 + DeadlineInd + 
+                     DeadlineDays + Back2BackHome + Back2BackAway +
+                     h1a1_train21 * DeadlineInd + 
+                     h1a1_train21 * DeadlineDays + 
+                     h1a1_train21 * DeadlineInd * DeadlineDays, 
+                   data = train_2021_lin)
+
+# test_2021_lin <- test_2021_lin[-c(636), ]
+
+model_1_preds <- predict(lin_model_21, newdata = test_2021_lin)
+model_1_mse <- mean((model_1_preds - test_2021_lin$BoundaryProbHome2)^2)
+
+# quad out of sample
+set.seed(10)
+n_games <- nrow(nhl_2021_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2021_lin <- nhl_2021_neat[train_i,]
+test_2021_lin <- nhl_2021_neat[test_i,]
+h1a1_train21 <- h1a121[train_i,]
+h1a1_test21 <- h1a121[test_i,]
+
+quad_model_21 <- lm(BoundaryProbHome2 ~ h1a1_train21 + Back2BackHome + Back2BackAway +
+                      DeadlineInd + I(DeadlineDays^2) + h1a1_train21 * DeadlineInd + h1a1_train21 * I(DeadlineDays^2) + h1a1_train21 * DeadlineInd * I(DeadlineDays^2),
+                    data = train_2021_lin)
+
+test_2021_lin <- test_2021_lin[-c(636), ]
+
+model_1_preds <- predict(quad_model_21, newdata = test_2021_lin)
+model_1_mse <- mean((model_1_preds - test_2021_lin$BoundaryProbHome2)^2)
+
+
+# quick sidebar
+
+tidy21 <- tidy(fit_lasso_cv21$glmnet.fit)
+
+tidy21 <-
+  tidy21 %>%
+  mutate(term = str_remove(term, "h1a121nhl_2021_neat"),
+         term = gsub("\\$", "", term),
+         term = str_remove(term, "HomeTeam"))
+
+tidy21 %>%
+  filter(lambda == fit_lasso_cv21$lambda.1se) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  filter(estimate > 0.003) %>%
+  ggplot(aes(x = term, y = estimate,
+             fill = coef_sign)) + 
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkblue"),
+                    guide = FALSE) +
+  coord_flip() +
+  labs(y = "Coefficient Estimate",
+       x = "Term")+ 
+  theme_bw()
+
+tidy21 %>%
+  filter(lambda == fit_lasso_cv21$lambda.1se) %>%
+  mutate(coef_sign = as.factor(sign(estimate)),
+         term = fct_reorder(term, estimate)) %>%
+  filter(estimate < -0.003) %>%
+  ggplot(aes(x = term, y = estimate, 
+             fill = coef_sign)) +
+  geom_bar(stat = "identity", color = "white") +
+  scale_fill_manual(values = c("darkred", "darkblue"), 
+                    guide = FALSE) +
+  coord_flip() +
+  theme_bw()
+
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs21 <- coef(fit_lasso_cv21, s = "lambda.1se")
@@ -1481,11 +1908,11 @@ tidy_lasso_coef21_2 <- tidy_lasso_coef21_2[-1,]
 hometeams <- tidy_lasso_coef21_2 %>%
   select(1:32)
 deadlineind <- tidy_lasso_coef21_2 %>%
-  select(DeadlineInd, 35:65)
+  select(DeadlineInd, 37:67)
 deadlinedays <- tidy_lasso_coef21_2 %>%
-  select(DeadlineDays, 66:96)
+  select(DeadlineDays, 68:98)
 interaction <- tidy_lasso_coef21_2 %>%
-  select(97:128)
+  select(99:130)
 
 # making data longer
 hometeams2 <- gather(hometeams, Team, intercept, 2:32)
@@ -1495,6 +1922,8 @@ interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
 
 # binding data set together
 tidy_lasso_coef21_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_lasso_coef21_3$Back2BackHome = tidy_lasso_coef21_2$Back2BackHome
+tidy_lasso_coef21_3$Back2BackAway = tidy_lasso_coef21_2$Back2BackAway
 
 # setting NAs to 0
 tidy_lasso_coef21_3[is.na(tidy_lasso_coef21_3)] <- 0
@@ -1551,7 +1980,9 @@ model_subset21 <-
          "HomeTeam", 
          "AwayTeam",
          "DeadlineInd", 
-         "DeadlineDays", "ID")
+         "DeadlineDays", "ID",
+         "Back2BackHome",
+         "Back2BackAway")
 
 model_subset21 <- left_join(model_subset21, h1a1_df21,
                             by = "ID")
@@ -1596,6 +2027,411 @@ model_subset21 <-
          "Washington" = `nhl_2021_neat$HomeTeamWashington`,
          "Winnipeg" = `nhl_2021_neat$HomeTeamWinnipeg`
   )
+# Seattle
+model_subset21 <-
+  model_subset21 %>%
+  mutate(Seattle = 0)
 
 write.csv(model_subset21, "data/model_subset21.csv")
+
+
+
+
+
+## 2021-2022
+# loading data
+nhl_2022 <- readxl::read_xlsx("data/nhl odds 2021-22.xlsx")
+
+# trade deadline and date indicator variables
+nhl_2022 <-
+  nhl_2022 %>%
+  mutate(Deadline = as.numeric(Date %in% c(321:611)),
+         Year = as.numeric(Date %in% c(101:707)))
+
+# adding date variable
+nhl_2022 <-
+  nhl_2022 %>%
+  mutate(Date = ifelse(Year == 0, paste(2021, Date, sep = ""),
+                       paste(2022, Date, sep = "0")))
+
+# convert date into a "date"
+nhl_2022 <-
+  nhl_2022 %>%
+  mutate(Date = lubridate::ymd(Date))
+
+# taking out playoff games
+nhl_2022 <-
+  nhl_2022 %>%
+  filter(Date < "2022-5-02")
+
+# making ID variable for game
+nhl_2022$ID <- seq.int(nrow(nhl_2022))
+nhl_2022 <-
+  nhl_2022 %>%
+  mutate(ID = as.integer(ID),
+         ID = ID / 2,
+         ID = ceiling(ID))
+
+# indicator variable for days since trade deadline
+nhl_2022 <-
+  nhl_2022 %>%
+  mutate(Deadline2 = Date - lubridate::ymd(20220321))
+
+# indicator variable for whether a team played the day before
+nhl_2022 <-
+  nhl_2022 %>%
+  group_by(Team) %>%
+  mutate(Game = (c(1, diff(Date) > 1)))
+
+# make data wider - each row is one game
+nhl_2022_home <- nhl_2022 %>%
+  filter(VH == "H")
+nhl_2022_away <- nhl_2022 %>%
+  filter(VH == "V")
+nhl_2022_wide<-bind_cols(nhl_2022_home,nhl_2022_away)
+
+# tidy wider data
+nhl_2022_wide <- 
+  nhl_2022_wide[, c(1, 2, 23, 21, 3, 4, 
+                    25, 5, 26, 6, 27, 7, 
+                    28, 8, 29, 9, 30, 10, 
+                    31, 11, 32, 12, 33, 13, 
+                    34, 14, 35, 15, 36, 16, 
+                    37, 17, 18, 19, 20, 22, 
+                    24, 38, 39, 40, 41, 42)]
+
+nhl_2022_neat <- 
+  nhl_2022_wide[-c(5, 25, 28, 36:41)]
+
+nhl_2022_neat <-
+  nhl_2022_neat %>%
+  rename("Date" = Date...1,
+         "Rot Home Team" = Rot...2,
+         "Back2Back Home" = Game...21,
+         "HomeTeam" =Team...4,
+         "1st Home Team Goals" = `1st...5`,
+         "2nd Home Team Goals" = `2nd...6`,
+         "3rd Home Team Goals" = `3rd...7`,
+         "FinalHome" = Final...8,
+         "Open Home Team" = Open...9,
+         "CloseHomeTeam" = Close...10,
+         "Puck Line Home Team" = `PuckLine...11`,
+         "Open OU" = `OpenOU...13`,
+         "Close OU" = `CloseOU...36`,
+         "DeadlineInd" = Deadline...17,
+         "Year" = Year...18,
+         "Game ID" = ID...19,
+         "DeadlineDays" = Deadline2...20,
+         "Rot Away Team" = Rot...23,
+         "AwayTeam" =Team...25,
+         "1st Away Team Goals" = `1st...26`,
+         "2nd Away Team Goals" = `2nd...27`,
+         "3rd Away Team Goals" = `3rd...28`,
+         "FinalAway" = Final...29,
+         "Open Away Team" = Open...30,
+         "CloseAwayTeam" = Close...31,
+         "Puck Line Away Team" = `PuckLine...32`,
+         "Back2Back Away" = Game...42
+  )
+
+# Market Probabilities
+nhl_2022_neat <-
+  nhl_2022_neat %>%
+  mutate(BoundaryProbHome = ifelse(CloseHomeTeam >= 100, 100/(CloseHomeTeam + 100), abs(CloseHomeTeam) / (100 + abs(CloseHomeTeam)))) 
+
+nhl_2022_neat <-
+  nhl_2022_neat %>%
+  mutate(BoundaryProbAway = ifelse(CloseAwayTeam >= 100, 100/(CloseAwayTeam + 100), abs(CloseAwayTeam) / (100 + abs(CloseAwayTeam)))) 
+
+nhl_2022 <- 
+  nhl_2022 %>%
+  mutate(BoundaryProb = ifelse(Close >= 100, 100/(Close + 100), abs(Close) / (100 + abs(Close)))) 
+
+nhl_2022_neat <-
+  nhl_2022_neat %>%
+  mutate(BoundaryProbHome2 = BoundaryProbHome / (BoundaryProbHome + BoundaryProbAway),
+         BoundaryProbAway2 = BoundaryProbAway / (BoundaryProbAway + BoundaryProbHome))
+
+# fixing back to back
+nhl_2022_neat <-
+  nhl_2022_neat %>%
+  mutate(Back2BackHome = ifelse(`Back2Back Home` == 0, 1, 0),
+         Back2BackAway = ifelse(`Back2Back Away` == 0, 1, 0))
+
+# replacing error
+nhl_2022_neat$HomeTeam = 
+  str_replace(nhl_2022_neat$HomeTeam, "SeattleKraken",
+              "Seattle")
+
+nhl_2022_neat$AwayTeam = 
+  str_replace(nhl_2022_neat$AwayTeam, "SeattleKraken",
+              "Seattle")
+
+# Making Model Matrix for Home Team Effect
+h122 = model.matrix(~-1+nhl_2022_neat$HomeTeam)
+a122 = model.matrix(~-1+nhl_2022_neat$AwayTeam)
+h1a122 = h122-a122
+h1a1_df22 <- as.data.frame(h1a122)
+h1a1_df22 <-
+  h1a1_df22 %>%
+  mutate(ID = row_number())
+
+# Linear Model
+nhl_2022_neat <-
+  nhl_2022_neat %>%
+  mutate(DeadlineDays = as.numeric(DeadlineDays))
+
+homeandaway_lm22 <- lm(BoundaryProbHome2 ~ h1a122 + DeadlineInd +
+                         DeadlineDays + Back2BackHome + Back2BackAway +
+                         h1a122 * DeadlineInd + 
+                         h1a122 * DeadlineDays + 
+                         h1a122 * DeadlineInd * DeadlineDays,
+                       data = nhl_2022_neat)
+
+summary(homeandaway_lm22)
+
+plot(homeandaway_lm22)
+
+## Calculating who won/lost trade deadline: Lasso Model
+tidy_coef22 <- tidy(homeandaway_lm22)
+
+# constructing lasso model
+nhl_2022_neat <- 
+  nhl_2022_neat %>%
+  mutate(ID = row_number())
+
+model_subset22 <-
+  nhl_2022_neat %>%
+  select("BoundaryProbHome2", "DeadlineInd",
+         "DeadlineDays", "ID", "Back2BackHome",
+         "Back2BackAway")
+
+model_subset22 <-
+  left_join(model_subset22, h1a1_df22, by = "ID")
+
+model_subset22 <- subset(model_subset22, select = -ID)
+
+# using model.matrix() function
+model_y22 <-
+  model_subset22$BoundaryProbHome2
+
+model_x22 <- model.matrix(BoundaryProbHome2 ~ 
+                            h1a122 + DeadlineInd + 
+                            DeadlineDays + Back2BackHome +
+                            Back2BackAway +
+                            h1a122 * DeadlineInd + 
+                            h1a122 * DeadlineDays + 
+                            h1a122 * DeadlineInd * DeadlineDays,
+                          data = model_subset22)[,-1]
+
+# Lasso regression
+fit_lasso_cv22 <- cv.glmnet(model_x22, model_y22, 
+                            alpha = 1)
+modelx22_quad <- model.matrix(BoundaryProbHome2 ~ h1a122 +Back2BackHome +
+                                Back2BackAway +
+                                DeadlineInd + I(DeadlineDays^2) + h1a122 * DeadlineInd + 
+                                h1a122 * I(DeadlineDays^2) + h1a122 * 
+                                DeadlineInd * I(DeadlineDays^2),
+                              data = model_subset22)[,-1]
+fit_lasso_quad22 <- cv.glmnet(modelx22_quad, model_y22, 
+                              alpha = 1)
+
+sqrt(mean(fit_lasso_cv22$cvm))
+sqrt(mean(fit_lasso_quad22$cvm))
+
+
+# out of sample testing
+# out of sample testing
+set.seed(10)
+n_games <- nrow(nhl_2022_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2022_lin <- nhl_2022_neat[train_i,]
+test_2022_lin <- nhl_2022_neat[test_i,]
+h1a1_train22 <- h1a122[train_i,]
+h1a1_test22 <- h1a122[test_i,]
+
+lin_model_22 <- lm(BoundaryProbHome2 ~ h1a1_train22 + DeadlineInd + 
+                     DeadlineDays + Back2BackHome + Back2BackAway +
+                     h1a1_train22 * DeadlineInd + 
+                     h1a1_train22 * DeadlineDays + 
+                     h1a1_train22 * DeadlineInd * DeadlineDays, 
+                   data = train_2022_lin)
+
+# test_2021_lin <- test_2021_lin[-c(636), ]
+
+model_1_preds <- predict(lin_model_22, newdata = test_2022_lin)
+model_1_mse <- mean((model_1_preds - test_2022_lin$BoundaryProbHome2)^2)
+
+# quad out of sample
+set.seed(10)
+n_games <- nrow(nhl_2022_neat)
+train_i <- sample(n_games, n_games / 2, replace = FALSE)
+test_i <- (1:n_games)[-train_i]
+
+train_2022_lin <- nhl_2022_neat[train_i,]
+test_2022_lin <- nhl_2022_neat[test_i,]
+h1a1_train22 <- h1a122[train_i,]
+h1a1_test22 <- h1a122[test_i,]
+
+quad_model_22 <- lm(BoundaryProbHome2 ~ h1a1_train22 + Back2BackHome + Back2BackAway +
+                      DeadlineInd + I(DeadlineDays^2) + h1a1_train22 * DeadlineInd + h1a1_train22 * I(DeadlineDays^2) + h1a1_train22 * DeadlineInd * I(DeadlineDays^2),
+                    data = train_2022_lin)
+
+# test_2022_lin <- test_2022_lin[-c(636), ]
+
+model_1_preds <- predict(quad_model_22, newdata = test_2022_lin)
+model_1_mse <- mean((model_1_preds - test_2022_lin$BoundaryProbHome2)^2)
+
+
+# quick sidebar
+
+
+# finding who won/lost the trade deadline LASSO
+tidy_coeffs22 <- coef(fit_lasso_cv22, s = "lambda.1se")
+tidy_lasso_coef22 <- data.frame(name = tidy_coeffs22@Dimnames[[1]][tidy_coeffs22@i + 1], 
+                                coefficient = tidy_coeffs22@x)
+
+tidy_lasso_coef22 <- rename(tidy_lasso_coef22, term = name)
+
+tidy_lasso_coef22_tot <- left_join(tidy_coef22, tidy_lasso_coef22, by = "term")
+tidy_lasso_coef22_2 <- tidy_lasso_coef22_tot[-c(2:5)] 
+tidy_lasso_coef22_2[is.na(tidy_lasso_coef22_2)] = 0
+
+# transposing df
+tidy_lasso_coef22_2 <- t(tidy_lasso_coef22_2)
+tidy_lasso_coef22_2 <- as.data.frame(tidy_lasso_coef22_2)
+
+# tidying names
+names(tidy_lasso_coef22_2) <- tidy_lasso_coef22_2[1,]
+tidy_lasso_coef22_2 <- tidy_lasso_coef22_2[-1,]
+
+# split by coefficients
+hometeams <- tidy_lasso_coef22_2 %>%
+  select(1:33)
+deadlineind <- tidy_lasso_coef22_2 %>%
+  select(DeadlineInd, 38:69)
+deadlinedays <- tidy_lasso_coef22_2 %>%
+  select(DeadlineDays, 70:101)
+interaction <- tidy_lasso_coef22_2 %>%
+  select(102:134)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:33)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:33)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:33)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:33)
+
+# binding data set together
+tidy_lasso_coef22_3 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_lasso_coef22_3$Back2BackHome = tidy_lasso_coef22_2$Back2BackHome
+tidy_lasso_coef22_3$Back2BackAway = tidy_lasso_coef22_2$Back2BackAway
+
+# setting NAs to 0
+tidy_lasso_coef22_3[is.na(tidy_lasso_coef22_3)] <- 0
+
+# tidying
+tidy_lasso_coef22_clean <- tidy_lasso_coef22_3[,-c(5,8,11)]
+names(tidy_lasso_coef22_clean)[1] <- "main_intercept"
+
+tidy_lasso_coef22_clean<-
+  tidy_lasso_coef22_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_lasso_coef22_fin <-
+  tidy_lasso_coef22_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 36 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 36 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+
+
+
+
+# saving data frame of coefficients
+write.csv(tidy_lasso_coef22_fin, "data/coefs2022.csv")
+write.csv(nhl_2022_neat, "data/nhl_2022_neat.csv")
+
+
+# creating a "model" dataset including home team effect and Boundary Prob
+h1a1_df22 <- as.data.frame(h1a122)
+nhl_2022_neat <- 
+  nhl_2022_neat %>%
+  mutate(ID = row_number())
+h1a1_df22 <-
+  h1a1_df22 %>%
+  mutate(ID = row_number())
+
+model_subset22 <-
+  nhl_2022_neat %>%
+  select("BoundaryProbHome2", "BoundaryProbAway2", 
+         "HomeTeam", 
+         "AwayTeam",
+         "DeadlineInd", 
+         "DeadlineDays", "ID",
+         "Back2BackHome",
+         "Back2BackAway")
+
+model_subset22 <- left_join(model_subset22, h1a1_df22,
+                            by = "ID")
+
+model_subset22 <- subset(model_subset22, select = -ID)
+
+model_subset22 <-
+  model_subset22 %>%
+  mutate(DeadlineDays = as.numeric(DeadlineDays))
+
+model_subset22 <-
+  model_subset22 %>%
+  rename("Anaheim" = `nhl_2022_neat$HomeTeamAnaheim`,
+         "Arizona" = `nhl_2022_neat$HomeTeamArizona`,
+         "Boston" =`nhl_2022_neat$HomeTeamBoston`,
+         "Buffalo" = `nhl_2022_neat$HomeTeamBuffalo`,
+         "Calgary" = `nhl_2022_neat$HomeTeamCalgary`,
+         "Carolina" = `nhl_2022_neat$HomeTeamCarolina`,
+         "Chicago" = `nhl_2022_neat$HomeTeamChicago`,
+         "Colorado" = `nhl_2022_neat$HomeTeamColorado`,
+         "Columbus" = `nhl_2022_neat$HomeTeamColumbus`,
+         "Dallas" = `nhl_2022_neat$HomeTeamDallas`,
+         "Detroit" = `nhl_2022_neat$HomeTeamDetroit`,
+         "Edmonton" = `nhl_2022_neat$HomeTeamEdmonton`,
+         "Florida" = `nhl_2022_neat$HomeTeamFlorida`,
+         "LosAngeles" = `nhl_2022_neat$HomeTeamLosAngeles`,
+         "Minnesota" = `nhl_2022_neat$HomeTeamMinnesota`,
+         "Montreal" = `nhl_2022_neat$HomeTeamMontreal`,
+         "Nashville" = `nhl_2022_neat$HomeTeamNashville`,
+         "NewJersey" =`nhl_2022_neat$HomeTeamNewJersey`,
+         "NYIslanders" = `nhl_2022_neat$HomeTeamNYIslanders`,
+         "NYRangers" = `nhl_2022_neat$HomeTeamNYRangers`,
+         "Ottawa" = `nhl_2022_neat$HomeTeamOttawa`,
+         "Philadelphia" = `nhl_2022_neat$HomeTeamPhiladelphia`,
+         "Pittsburgh" = `nhl_2022_neat$HomeTeamPittsburgh`,
+         "Seattle" = `nhl_2022_neat$HomeTeamSeattle`,
+         "SanJose" = `nhl_2022_neat$HomeTeamSanJose`,
+         "Seattle" = `nhl_2022_neat$HomeTeamSeattle`,
+         "St.Louis" = `nhl_2022_neat$HomeTeamSt.Louis`,
+         "TampaBay" = `nhl_2022_neat$HomeTeamTampaBay`,
+         "Toronto" = `nhl_2022_neat$HomeTeamToronto`,
+         "Vancouver" = `nhl_2022_neat$HomeTeamVancouver`,
+         "Vegas" = `nhl_2022_neat$HomeTeamVegas`,
+         "Washington" = `nhl_2022_neat$HomeTeamWashington`,
+         "Winnipeg" = `nhl_2022_neat$HomeTeamWinnipeg`
+  )
+
+write.csv(model_subset22, "data/model_subset22.csv")
 

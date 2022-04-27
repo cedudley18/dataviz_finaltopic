@@ -69,3 +69,7 @@ MH: It's probably a little late for this to be worth it, but you should be able 
 # April 25 end of class
 
   Still trying to figure out the second set of radio buttons, now using updateradiobuttons but still not able to get it to work yet.
+
+# April 27 beginning of class
+
+  I added this year's season of data (2021-2022 up until April 26) and got it in the Shiny.
