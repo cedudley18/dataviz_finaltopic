@@ -2,6 +2,7 @@ library(tidyverse)
 library(plotly)
 library(shinythemes)
 library(DT)
+library(expss)
 
 # putting together all of the seasons
 coefs <- read_csv("data/coefs2017.csv")
@@ -97,15 +98,13 @@ ui <- fluidPage(
                                 selected = "Boston"),
                  radioButtons(inputId = "yearselect",
                               label = "Choose a Season",
-                              choices = levels(factor(total_coefs$Season))),
-                 radioButtons(inputId = "colorselect",
-                              label = "Choose How to Color Points",
-                              choices = c("isHome", "Back2Back"))),
+                              choices = levels(factor(total_coefs$Season)))),
     mainPanel(plotlyOutput(outputId = "majorplot"),
-              DT::dataTableOutput(outputId = "table1"))
+              tableOutput(outputId = "table1"))
   ))
 
 server <- function(input, output, session) {
+  
   model_update <- reactive({
     total_modeldf <-
       total_modeldf %>%
@@ -119,24 +118,10 @@ server <- function(input, output, session) {
       mutate(OpposingTeam = gsub(",","",OpposingTeam)) %>%
       mutate(Back2Back = ifelse(HomeTeam == input$teamchoice,
                                 Back2BackHome, Back2BackAway)) %>%
-      mutate(Back2Back = as.logical(Back2Back)) %>%
-      mutate(isHome = ifelse(HomeTeam == input$teamchoice,
-                             "Home", "Away")) 
+      mutate(Back2Back = as.logical(Back2Back)) 
   })
   
-  observe({
-    x <- input$teamchoice
-    
-    updateRadioButtons(session, "colorchoice",
-                       label = paste("radioButtons label", x),
-                       choices = x,
-                       selected = x)
-  })
-  
- #observeEvent(input$teamchoice, {
- #  updateRadioButtons(session, "colorchoice",
-  #                    choices = model_update()[,c('isHome', 'Back2Back')])
- #})
+
   
   coef_update <- reactive({
     total_coefs <-
@@ -179,7 +164,7 @@ server <- function(input, output, session) {
   
   plot1 <- reactive({ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
                                              label = OpposingTeam)) +
-    geom_point(aes(color = input$colorchoice)) +
+    geom_point(aes(color = model_update()$Back2Back)) +
     geom_segment(aes(x = coef_update()$daysbeforedeadline, 
                      y = coef_update()$main_intercept +
                        coef_update()$intercept + 
@@ -204,24 +189,31 @@ server <- function(input, output, session) {
   
   
   output$majorplot <- renderPlotly({
+    validate(
+      need(coef_update() > 1, paste('Sorry, you chose a year where', input$teamchoice,
+           'did not exist!'))
+    )
+    validate(need(model_update() > 1, paste('Sorry, you chose a year where', input$teamchoice,
+                  'did not exist!')))
     ggplotly(plot1(), tooltip = "label")
     
   })
   
   
   
-  output$table1 <- DT::renderDataTable({cbind(coef_order1(),
+  output$table1 <- renderTable({cbind(coef_order1(),
                                       coef_order2(),
                                       coef_order3(),
                                       coef_order4())
     
-  }, options = list(orderClasses = TRUE), caption = paste("The table below displays the top 5 'winners' and 'losers' at 
-  and after the trade deadline. The variable diffat0 refers to the difference in
-                     the two lines at the trade deadline (day 0) and the variable
-                     diffat40 shows the difference between where the first line would
-                     have ended up and where the second line ends up at the end
-                     of the regular season. These two variables are what we used
-                     to measure how well teams did at the deadline."))
+  }, caption = paste("The table above displays the top 5 'winners' and 'losers' at 
+     and after the trade deadline. The variable diffat0 refers to the difference in
+                    the two lines at the trade deadline (day 0) and the variable
+                    diffat40 shows the difference between where the first line would
+                    have ended up and where the second line ends up at the end
+                    of the regular season. These two variables are what we used
+                    to measure how well teams did at the deadline.")
+ )
   
 }
 

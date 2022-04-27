@@ -31,4 +31,6 @@ Alyssa: shinyApp of MLB data where you choose a team (or multiple teams) and see
 
 Nick: blog of housing in Boston and New York including analyses of housing options and a leaflet of the options in Boston
 
+## April 27
 
+Kaden: shinyApp of hockey/shot data where you can look at powerplay goals and also select a variable of your choice on another tab
