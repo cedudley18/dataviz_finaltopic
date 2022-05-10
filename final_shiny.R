@@ -183,6 +183,7 @@ server <- function(input, output, session) {
                      xend = coef_update()$daysafterdeadline, 
                      yend = coef_update()$predictedend
     )) +
+      scale_color_brewer(palette = "Set1") +
     geom_vline(xintercept = 0, linetype = "dotted",
                color = "pink") +
     theme_classic() +
