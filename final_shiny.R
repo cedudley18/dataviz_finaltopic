@@ -90,7 +90,7 @@ library(shiny)
 
 ui <- fluidPage(
   titlePanel("Quantifying NHL Trade Deadline Winners and Losers"),
-  theme = shinytheme("journal"),
+  theme = shinytheme("yeti"),
   sidebarLayout(
     sidebarPanel(selectizeInput(inputId = "teamchoice",
                                 label = "Choose a Team",
@@ -135,7 +135,8 @@ server <- function(input, output, session) {
       total_coefs %>%
       filter(Season == input$yearselect) %>%
       slice_max(diffat0, n = 5) %>%
-      select(Team, diffat0)
+      select(Team, diffat0) %>%
+      rename("Winners at 0" = diffat0)
   })
   
   coef_order2 <- reactive({
@@ -143,7 +144,8 @@ server <- function(input, output, session) {
       total_coefs %>%
       filter(Season == input$yearselect) %>%
       slice_min(diffat0, n = 5) %>%
-      select(Team, diffat0)
+      select(Team, diffat0) %>%
+      rename("Losers at 0" = diffat0)
   })
   
   coef_order3 <- reactive({
@@ -151,7 +153,8 @@ server <- function(input, output, session) {
       total_coefs %>%
       filter(Season == input$yearselect) %>%
       slice_max(diffat40, n = 5) %>%
-      select(Team, diffat40)
+      select(Team, diffat40) %>%
+      rename("Winners at End of Season" = diffat40)
   })
   
   coef_order4 <- reactive({
@@ -159,7 +162,8 @@ server <- function(input, output, session) {
       total_coefs %>%
       filter(Season == input$yearselect) %>%
       slice_min(diffat40, n = 5) %>%
-      select(Team, diffat40)
+      select(Team, diffat40) %>%
+      rename("Losers at End of Season" = diffat40)
   })
   
   plot1 <- reactive({ggplot(data = model_update(), aes(x = DeadlineDays, y = BoundaryProb,
@@ -179,7 +183,10 @@ server <- function(input, output, session) {
                      xend = coef_update()$daysafterdeadline, 
                      yend = coef_update()$predictedend
     )) +
+    geom_vline(xintercept = 0, linetype = "dotted",
+               color = "pink") +
     theme_classic() +
+      theme(text = element_text(size = 14)) +
     labs(x = "Days Relative to the Trade Deadline",
          y =  "Vegas's Predicted Probability of Winning",
          title = input$teamchoice, 

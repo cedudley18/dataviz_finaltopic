@@ -246,6 +246,76 @@ fit_lasso_quad16 <- cv.glmnet(modelx16_quad, model_y16,
   
 sqrt(mean(fit_lasso_quad16$cvm))
 
+# who won/lost the trade deadline LINEAR (NOT LASSO)
+tidy_coef16 <- tidy(homeandaway_lm16)
+
+# transposing df
+tidy_coef16 <- t(tidy_coef16)
+tidy_coef16 <- as.data.frame(tidy_coef16)
+
+# tidying names
+names(tidy_coef16) <- tidy_coef16[1,]
+tidy_coef16 <- tidy_coef16[-1,]
+
+# taking out sd and p-value
+tidy_coef16 <- tidy_coef16[-c(2,3,4),]
+
+# split by coefficients
+hometeams <- tidy_coef16 %>%
+  select(1:31)
+deadlineind <- tidy_coef16 %>%
+  select(DeadlineInd, 36:65)
+deadlinedays <- tidy_coef16 %>%
+  select(DeadlineDays, 66:95)
+interaction <- tidy_coef16 %>%
+  select(96:126)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:31)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:31)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:31)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:31)
+
+# binding data set together
+tidy_coef16_2 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_coef16_2$Back2BackHome = tidy_coef16$Back2BackHome
+tidy_coef16_2$Back2BackAway = tidy_coef16$Back2BackAway
+
+
+# setting NAs to 0
+tidy_coef16_2[is.na(tidy_coef16_2)] <- 0
+
+# tidying
+tidy_coef16_clean <- tidy_coef16_2[,-c(5,8,11)]
+names(tidy_coef16_clean)[1] <- "main_intercept"
+
+tidy_coef16_clean<-
+  tidy_coef16_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_coef16_fin <-
+  tidy_coef16_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 40 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 40 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+tidy_coef16_order <- tidy_coef16_fin[with(tidy_coef16_fin,order(-diffat40)),]
+tidy_coef16_order[1:10,]
+
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs16 <- coef(fit_lasso_cv16, s = "lambda.1se")
@@ -321,6 +391,8 @@ tidy_lasso_coef16_fin <-
     diffat40 = predictedend - firstlinepredictedend
   )
 
+tidy_lasso_coef16_order <- tidy_lasso_coef16_fin[with(tidy_lasso_coef16_fin,order(-diffat40)),]
+tidy_lasso_coef16_order[1:10,]
 
 # saving data frame of coefficients and neat data
 write.csv(tidy_lasso_coef16_fin, "data/coefs2016.csv")
@@ -641,7 +713,75 @@ test_2017_lin <- test_2017_lin[-c(636) ,]
 model_1_preds <- predict(quad_model_17, newdata = test_2017_lin)
 model_1_mse <- mean((model_1_preds - test_2017_lin$BoundaryProbHome2)^2)
 
+# who won/lost the trade deadline LINEAR (NOT LASSO)
+tidy_coef17 <- tidy(homeandaway_lm17)
 
+# transposing df
+tidy_coef17 <- t(tidy_coef17)
+tidy_coef17 <- as.data.frame(tidy_coef17)
+
+# tidying names
+names(tidy_coef17) <- tidy_coef17[1,]
+tidy_coef17 <- tidy_coef17[-1,]
+
+# taking out sd and p-value
+tidy_coef17 <- tidy_coef17[-c(2,3,4),]
+
+# split by coefficients
+hometeams <- tidy_coef17 %>%
+  select(1:32)
+deadlineind <- tidy_coef17 %>%
+  select(DeadlineInd, 37:67)
+deadlinedays <- tidy_coef17 %>%
+  select(DeadlineDays, 68:98)
+interaction <- tidy_coef17 %>%
+  select(99:130)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:32)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:32)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:32)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
+
+# binding data set together
+tidy_coef17_2 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_coef17_2$Back2BackHome = tidy_coef17$Back2BackHome
+tidy_coef17_2$Back2BackAway = tidy_coef17$Back2BackAway
+
+
+# setting NAs to 0
+tidy_coef17_2[is.na(tidy_coef17_2)] <- 0
+
+# tidying
+tidy_coef17_clean <- tidy_coef17_2[,-c(5,8,11)]
+names(tidy_coef17_clean)[1] <- "main_intercept"
+
+tidy_coef17_clean<-
+  tidy_coef17_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_coef17_fin <-
+  tidy_coef17_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 40 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 40 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+tidy_coef17_order <- tidy_coef17_fin[with(tidy_coef17_fin,order(-diffat40)),]
+tidy_coef17_order[1:10,]
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs17 <- coef(fit_lasso_cv17, s = "lambda.1se")
@@ -714,6 +854,8 @@ tidy_lasso_coef17_fin <-
     diffat40 = predictedend - firstlinepredictedend
   )
 
+tidy_lasso_coef17_order <- tidy_lasso_coef17_fin[with(tidy_lasso_coef17_fin,order(-diffat0)),]
+tidy_lasso_coef17_order[1:10,]
 
 
 
@@ -1070,6 +1212,77 @@ tidy18 %>%
        x = "Term")+ 
   theme_bw()
 
+# who won/lost the trade deadline LINEAR (NOT LASSO)
+tidy_coef18 <- tidy(homeandaway_lm18)
+
+# transposing df
+tidy_coef18 <- t(tidy_coef18)
+tidy_coef18 <- as.data.frame(tidy_coef18)
+
+# tidying names
+names(tidy_coef18) <- tidy_coef18[1,]
+tidy_coef18 <- tidy_coef18[-1,]
+
+# taking out sd and p-value
+tidy_coef18 <- tidy_coef18[-c(2,3,4),]
+
+# split by coefficients
+hometeams <- tidy_coef18 %>%
+  select(1:32)
+deadlineind <- tidy_coef18 %>%
+  select(DeadlineInd, 37:67)
+deadlinedays <- tidy_coef18 %>%
+  select(DeadlineDays, 68:98)
+interaction <- tidy_coef18 %>%
+  select(99:130)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:32)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:32)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:32)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
+
+# binding data set together
+tidy_coef18_2 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_coef18_2$Back2BackHome = tidy_coef18$Back2BackHome
+tidy_coef18_2$Back2BackAway = tidy_coef18$Back2BackAway
+
+
+# setting NAs to 0
+tidy_coef18_2[is.na(tidy_coef18_2)] <- 0
+
+# tidying
+tidy_coef18_clean <- tidy_coef18_2[,-c(5,8,11)]
+names(tidy_coef18_clean)[1] <- "main_intercept"
+
+tidy_coef18_clean<-
+  tidy_coef18_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_coef18_fin <-
+  tidy_coef18_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 40 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 40 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+tidy_coef18_order <- tidy_coef18_fin[with(tidy_coef18_fin,order(-diffat40)),]
+tidy_coef18_order[1:10,]
+
+
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs18 <- coef(fit_lasso_cv18, s = "lambda.1se")
@@ -1143,8 +1356,8 @@ tidy_lasso_coef18_fin <-
     diffat40 = predictedend - firstlinepredictedend
   )
 
-
-
+tidy_lasso_coef18_order <- tidy_lasso_coef18_fin[with(tidy_lasso_coef18_fin,order(-diffat40)),]
+tidy_lasso_coef18_order[1:10,]
 
 
 # saving data frame of coefficients
@@ -1459,6 +1672,76 @@ quad_model_19 <- lm(BoundaryProbHome2 ~ h1a1_train19 + Back2BackHome + Back2Back
 model_1_preds <- predict(quad_model_19, newdata = test_2019_lin)
 model_1_mse <- mean((model_1_preds - test_2019_lin$BoundaryProbHome2)^2)
 
+# who won/lost the trade deadline LINEAR (NOT LASSO)
+tidy_coef19 <- tidy(homeandaway_lm19)
+
+# transposing df
+tidy_coef19 <- t(tidy_coef19)
+tidy_coef19 <- as.data.frame(tidy_coef19)
+
+# tidying names
+names(tidy_coef19) <- tidy_coef19[1,]
+tidy_coef19 <- tidy_coef19[-1,]
+
+# taking out sd and p-value
+tidy_coef19 <- tidy_coef19[-c(2,3,4),]
+
+# split by coefficients
+hometeams <- tidy_coef19 %>%
+  select(1:32)
+deadlineind <- tidy_coef19 %>%
+  select(DeadlineInd, 37:67)
+deadlinedays <- tidy_coef19 %>%
+  select(DeadlineDays, 68:98)
+interaction <- tidy_coef19 %>%
+  select(99:130)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:32)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:32)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:32)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
+
+# binding data set together
+tidy_coef19_2 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_coef19_2$Back2BackHome = tidy_coef19$Back2BackHome
+tidy_coef19_2$Back2BackAway = tidy_coef19$Back2BackAway
+
+
+# setting NAs to 0
+tidy_coef19_2[is.na(tidy_coef19_2)] <- 0
+
+# tidying
+tidy_coef19_clean <- tidy_coef19_2[,-c(5,8,11)]
+names(tidy_coef19_clean)[1] <- "main_intercept"
+
+tidy_coef19_clean<-
+  tidy_coef19_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_coef19_fin <-
+  tidy_coef19_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 40 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 40 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+tidy_coef19_order <- tidy_coef19_fin[with(tidy_coef19_fin,order(-diffat40)),]
+tidy_coef19_order[1:10,]
+
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs19 <- coef(fit_lasso_cv19, s = "lambda.1se")
 tidy_lasso_coef19 <- data.frame(name = tidy_coeffs19@Dimnames[[1]][tidy_coeffs19@i + 1], 
@@ -1530,8 +1813,8 @@ tidy_lasso_coef19_fin <-
     diffat40 = predictedend - firstlinepredictedend
   )
 
-
-
+tidy_lasso_coef19_order <- tidy_lasso_coef19_fin[with(tidy_lasso_coef19_fin,order(-diffat40)),]
+tidy_lasso_coef19_order[1:10,]
 
 
 # saving data frame of coefficients
@@ -1884,6 +2167,75 @@ tidy21 %>%
   coord_flip() +
   theme_bw()
 
+# who won/lost the trade deadline LINEAR (NOT LASSO)
+tidy_coef21 <- tidy(homeandaway_lm21)
+
+# transposing df
+tidy_coef21 <- t(tidy_coef21)
+tidy_coef21 <- as.data.frame(tidy_coef21)
+
+# tidying names
+names(tidy_coef21) <- tidy_coef21[1,]
+tidy_coef21 <- tidy_coef21[-1,]
+
+# taking out sd and p-value
+tidy_coef21 <- tidy_coef21[-c(2,3,4),]
+
+# split by coefficients
+hometeams <- tidy_coef21 %>%
+  select(1:32)
+deadlineind <- tidy_coef21 %>%
+  select(DeadlineInd, 37:67)
+deadlinedays <- tidy_coef21 %>%
+  select(DeadlineDays, 68:98)
+interaction <- tidy_coef21 %>%
+  select(99:130)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:32)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:32)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:32)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:32)
+
+# binding data set together
+tidy_coef21_2 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_coef21_2$Back2BackHome = tidy_coef21$Back2BackHome
+tidy_coef21_2$Back2BackAway = tidy_coef21$Back2BackAway
+
+
+# setting NAs to 0
+tidy_coef21_2[is.na(tidy_coef21_2)] <- 0
+
+# tidying
+tidy_coef21_clean <- tidy_coef21_2[,-c(5,8,11)]
+names(tidy_coef21_clean)[1] <- "main_intercept"
+
+tidy_coef21_clean<-
+  tidy_coef21_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_coef21_fin <-
+  tidy_coef21_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 40 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 40 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+tidy_coef21_order <- tidy_coef21_fin[with(tidy_coef21_fin,order(-diffat40)),]
+tidy_coef21_order[1:10,]
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs21 <- coef(fit_lasso_cv21, s = "lambda.1se")
@@ -1956,7 +2308,8 @@ tidy_lasso_coef21_fin <-
     diffat40 = predictedend - firstlinepredictedend
   )
 
-
+tidy_lasso_coef21_order <- tidy_lasso_coef21_fin[with(tidy_lasso_coef21_fin,order(-diffat40)),]
+tidy_lasso_coef21_order[1:10,]
 
 
 
@@ -2033,7 +2386,6 @@ model_subset21 <-
   mutate(Seattle = 0)
 
 write.csv(model_subset21, "data/model_subset21.csv")
-
 
 
 
@@ -2287,6 +2639,75 @@ model_1_mse <- mean((model_1_preds - test_2022_lin$BoundaryProbHome2)^2)
 
 # quick sidebar
 
+# who won/lost the trade deadline LINEAR (NOT LASSO)
+tidy_coef22 <- tidy(homeandaway_lm22)
+
+# transposing df
+tidy_coef22 <- t(tidy_coef22)
+tidy_coef22 <- as.data.frame(tidy_coef22)
+
+# tidying names
+names(tidy_coef22) <- tidy_coef22[1,]
+tidy_coef22 <- tidy_coef22[-1,]
+
+# taking out sd and p-value
+tidy_coef22 <- tidy_coef22[-c(2,3,4),]
+
+# split by coefficients
+hometeams <- tidy_coef22 %>%
+  select(1:33)
+deadlineind <- tidy_coef22 %>%
+  select(DeadlineInd, 38:69)
+deadlinedays <- tidy_coef22 %>%
+  select(DeadlineDays, 70:101)
+interaction <- tidy_coef22 %>%
+  select(102:134)
+
+# making data longer
+hometeams2 <- gather(hometeams, Team, intercept, 2:33)
+deadlineind2 <- gather(deadlineind, Team, deadline_indicator, 2:33)
+deadlinedays2 <- gather(deadlinedays, Team, deadline_days, 2:33)
+interaction2 <- gather(interaction, Team, deadline_interaction, 2:33)
+
+# binding data set together
+tidy_coef22_2 <- cbind(hometeams2, deadlineind2, deadlinedays2, interaction2)
+tidy_coef22_2$Back2BackHome = tidy_coef22$Back2BackHome
+tidy_coef22_2$Back2BackAway = tidy_coef22$Back2BackAway
+
+
+# setting NAs to 0
+tidy_coef22_2[is.na(tidy_coef22_2)] <- 0
+
+# tidying
+tidy_coef22_clean <- tidy_coef22_2[,-c(5,8,11)]
+names(tidy_coef22_clean)[1] <- "main_intercept"
+
+tidy_coef22_clean<-
+  tidy_coef22_clean %>%
+  mutate(
+    main_intercept = as.numeric(main_intercept),
+    intercept = as.numeric(intercept),
+    DeadlineInd = as.numeric(DeadlineInd),
+    deadline_indicator = as.numeric(deadline_indicator),
+    DeadlineDays = as.numeric(DeadlineDays),
+    deadline_days = as.numeric(deadline_days),
+    `DeadlineInd:DeadlineDays` = as.numeric(`DeadlineInd:DeadlineDays`),
+    deadline_interaction = as.numeric(deadline_interaction),
+  )
+
+tidy_coef22_fin <-
+  tidy_coef22_clean %>%
+  mutate(
+    beforedeadline = main_intercept + intercept,
+    atdeadline = main_intercept + intercept + (DeadlineInd + deadline_indicator),
+    predictedend = main_intercept + intercept + (DeadlineInd + deadline_indicator) + 40 * (DeadlineDays + deadline_days + `DeadlineInd:DeadlineDays` + deadline_interaction),
+    firstlinepredictedend = main_intercept + intercept + 40 * (DeadlineDays + deadline_days),
+    diffat0 = atdeadline - beforedeadline,
+    diffat40 = predictedend - firstlinepredictedend
+  )
+
+tidy_coef22_order <- tidy_coef22_fin[with(tidy_coef22_fin,order(-diffat40)),]
+tidy_coef22_order[1:10,]
 
 # finding who won/lost the trade deadline LASSO
 tidy_coeffs22 <- coef(fit_lasso_cv22, s = "lambda.1se")
@@ -2359,6 +2780,8 @@ tidy_lasso_coef22_fin <-
     diffat40 = predictedend - firstlinepredictedend
   )
 
+tidy_lasso_coef22_order <- tidy_lasso_coef22_fin[with(tidy_lasso_coef22_fin,order(-diffat40)),]
+tidy_lasso_coef22_order[1:10,]
 
 
 
@@ -2432,6 +2855,9 @@ model_subset22 <-
          "Washington" = `nhl_2022_neat$HomeTeamWashington`,
          "Winnipeg" = `nhl_2022_neat$HomeTeamWinnipeg`
   )
+
+tidy_lasso_coef22_order <- tidy_lasso_coef22_fin[with(tidy_lasso_coef22_fin,order(-diffat40)),]
+tidy_lasso_coef22_order[1:10,]
 
 write.csv(model_subset22, "data/model_subset22.csv")
 
